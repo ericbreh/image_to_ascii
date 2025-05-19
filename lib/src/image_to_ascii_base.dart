@@ -1,15 +1,14 @@
 import 'dart:io';
 import 'package:image/image.dart';
 
-void convertImageToAscii(String imagePath) {
+String convertImageToAscii(String imagePath) {
   try {
     // Load the image
     final bytes = File(imagePath).readAsBytesSync();
     final image = decodeImage(bytes);
 
     if (image == null) {
-      print('Could not decode image');
-      return;
+      return 'Could not decode image';
     }
 
     // Resize image
@@ -17,6 +16,8 @@ void convertImageToAscii(String imagePath) {
 
     // ASCII character set from darkest to lightest
     final asciiChars = '@%#*+=-:. ';
+
+    final buffer = StringBuffer();
 
     // Convert each pixel to an ASCII character
     for (int y = 0; y < resizedImage.height; y++) {
@@ -32,9 +33,10 @@ void convertImageToAscii(String imagePath) {
         final index = ((grayscale / 255) * (asciiChars.length - 1)).round();
         line += asciiChars[index];
       }
-      print(line);
+      buffer.writeln(line);
     }
+    return buffer.toString();
   } catch (e) {
-    print('Error: $e');
+    return 'Error: $e';
   }
 }
