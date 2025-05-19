@@ -12,7 +12,7 @@ String convertImageToAscii(String imagePath) {
     }
 
     // Resize image
-    final resizedImage = copyResize(image, width: 10);
+    final resizedImage = copyResize(image, width: 150, height: 75);
 
     // ASCII character set from darkest to lightest
     final asciiChars = '@%#*+=-:. ';
