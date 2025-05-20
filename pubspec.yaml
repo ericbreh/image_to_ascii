@@ -1,5 +1,5 @@
 name: image_to_ascii
-description: "A new Flutter plugin project."
+description: "Convert images to ASCII art."
 version: 0.0.1
 homepage:
 
@@ -11,6 +11,7 @@ dependencies:
   flutter:
     sdk: flutter
   plugin_platform_interface: ^2.0.2
+  image: ^3.3.0
 
 dev_dependencies:
   flutter_test:
