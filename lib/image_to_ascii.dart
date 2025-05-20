@@ -1,8 +1,8 @@
-/// Support for doing something awesome.
-///
-/// More dartdocs go here.
-library;
 
-export 'src/image_to_ascii_base.dart';
+import 'image_to_ascii_platform_interface.dart';
 
-// TODO: Export any libraries intended for clients of this package.
+class ImageToAscii {
+  Future<String?> getPlatformVersion() {
+    return ImageToAsciiPlatform.instance.getPlatformVersion();
+  }
+}
