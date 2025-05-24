@@ -36,7 +36,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('Basic Dart conversion does not throw', () {
-    final bytes = File('test/eko.png').readAsBytesSync();
+    final bytes = File('assets/eko.png').readAsBytesSync();
     final image = decodeImage(bytes)!;
 
     final plugin = ImageToAscii();

@@ -1,6 +1,6 @@
 import 'package:image/image.dart';
 import 'image_to_ascii_platform_interface.dart';
-import 'src/image_to_ascii_base.dart';
+import 'src/image_to_ascii_dart.dart';
 
 class ImageToAscii {
   Future<String?> getPlatformVersion() {
