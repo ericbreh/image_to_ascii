@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:async';
-import 'package:image/image.dart';
+import 'package:image/image.dart' as img;
 import 'package:flutter/services.dart';
 import 'package:image_to_ascii/image_to_ascii.dart';
 
@@ -17,15 +17,19 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  String _asciiArt = 'Loading...';
-  String _platformVersion = 'Unknown';
   final _imageToAsciiPlugin = ImageToAscii();
+
+  String _platformVersion = 'Unknown';
+
+  String _asciiArt = '';
+  String _loadingTime = '';
+  String _conversionTime = '';
+  img.Image? _decodedImage;
 
   @override
   void initState() {
     super.initState();
     initPlatformState();
-    _loadAndConvertImage();
   }
 
   // Platform messages are asynchronous, so we initialize in an async method.
@@ -51,24 +55,48 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  Future<void> _loadAndConvertImage() async {
-    try {
-      // Load asset
-      final byteData = await rootBundle.load('assets/eko.png');
-      final bytes = byteData.buffer.asUint8List();
+  Future<void> _loadConvertImage() async {
+    final stopwatch = Stopwatch()..start();
 
-      // Decode image using image package
-      final image = decodeImage(bytes);
-      if (image == null) throw Exception('Image decode failed');
+    // Load asset
+    final byteData = await rootBundle.load('assets/eko.png');
+    final bytes = byteData.buffer.asUint8List();
 
-      // Convert to ASCII
-      final ascii = _imageToAsciiPlugin.convertImageToAscii(image);
+    // Decode image using image package
+    final image = img.decodeImage(bytes);
+    if (image == null) throw Exception('Image decode failed');
 
-      if (!mounted) return;
-      setState(() => _asciiArt = ascii);
-    } catch (e) {
-      setState(() => _asciiArt = 'Error: $e');
-    }
+    stopwatch.stop();
+    final loadTime = stopwatch.elapsedMilliseconds;
+
+    setState(() {
+      _decodedImage = image;
+      _loadingTime = 'Loading time: ${loadTime}ms';
+    });
+
+    stopwatch.reset();
+    stopwatch.start();
+
+    // Convert to ASCII
+    final ascii = _imageToAsciiPlugin.convertImageToAscii(_decodedImage!);
+
+    stopwatch.stop();
+    final convertTime = stopwatch.elapsedMilliseconds;
+
+    if (!mounted) return;
+    setState(() {
+      _asciiArt = ascii;
+      _conversionTime = 'Conversion time: ${convertTime}ms';
+    });
+  }
+
+  void _clearAll() {
+    setState(() {
+      _asciiArt = '';
+      _loadingTime = '';
+      _conversionTime = '';
+      _decodedImage = null;
+    });
   }
 
   @override
@@ -97,11 +125,47 @@ class _MyAppState extends State<MyApp> {
                     ),
                     softWrap: false,
                     overflow: TextOverflow.clip,
-                    // textAlign: TextAlign.center,
                   ),
                 ),
               ),
             ),
+            if (_loadingTime.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: Text(
+                  _loadingTime,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            if (_conversionTime.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16.0),
+                child: Text(
+                  _conversionTime,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: _loadConvertImage,
+                  child: const Text('Load & Convert'),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton(
+                  onPressed: _clearAll,
+                  child: const Text('Clear'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
             Text('Running on: $_platformVersion\n'),
           ],
         ),
