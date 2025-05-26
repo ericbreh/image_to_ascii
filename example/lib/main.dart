@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:async';
 import 'package:image/image.dart' as img;
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:image_to_ascii/image_to_ascii.dart';
 
 void main() {
@@ -25,6 +28,8 @@ class _MyAppState extends State<MyApp> {
   String _loadingTime = '';
   String _conversionTime = '';
   img.Image? _decodedImage;
+
+  bool _isLoadingImage = false;
 
   @override
   void initState() {
@@ -99,6 +104,49 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
+  Future<void> _addImagePressed() async {
+    setState(() {
+      _isLoadingImage = true;
+    });
+
+    final ImagePicker picker = ImagePicker();
+    final XFile? imageLocal = await picker.pickImage(
+      source: ImageSource.gallery,
+    );
+
+    if (imageLocal != null) {
+      final stopwatch = Stopwatch()..start();
+
+      File imageFile = File(imageLocal.path);
+      final bytes = await imageFile.readAsBytes();
+      final img.Image? decodedImage = img.decodeImage(bytes);
+      if (decodedImage == null) throw Exception('Image decode failed');
+
+      stopwatch.stop();
+      final loadTime = stopwatch.elapsedMilliseconds;
+
+      setState(() {
+        _loadingTime = 'Loading time: ${loadTime}ms';
+      });
+
+      stopwatch.reset();
+      stopwatch.start();
+
+      final ascii = _imageToAsciiPlugin.convertImageToAscii(decodedImage);
+
+      stopwatch.stop();
+      final convertTime = stopwatch.elapsedMilliseconds;
+
+      setState(() {
+        _asciiArt = ascii;
+        _conversionTime = 'Conversion time: ${convertTime}ms';
+      });
+    }
+    setState(() {
+      _isLoadingImage = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -155,7 +203,7 @@ class _MyAppState extends State<MyApp> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 ElevatedButton(
-                  onPressed: _loadConvertImage,
+                  onPressed: _addImagePressed,
                   child: const Text('Load & Convert'),
                 ),
                 const SizedBox(width: 16),
