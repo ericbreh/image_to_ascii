@@ -30,16 +30,23 @@
 
 import 'dart:io';
 
-import 'package:image/image.dart';
 import 'package:image_to_ascii/image_to_ascii.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('Basic Dart conversion does not throw', () {
-    final bytes = File('assets/eko.png').readAsBytesSync();
-    final image = decodeImage(bytes)!;
+  test('Basic Dart conversion does not throw', () async {
+    final testFilePath = 'assets/eko.png';
+
+    // Check if test file exists
+    final file = File(testFilePath);
+    expect(
+      file.existsSync(),
+      true,
+      reason: 'Test image file not found at $testFilePath',
+    );
 
     final plugin = ImageToAscii();
-    expect(() => plugin.convertImageToAscii(image), returnsNormally);
+
+    await expectLater(plugin.convertImageToAscii(testFilePath), completes);
   });
 }

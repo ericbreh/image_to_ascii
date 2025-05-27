@@ -1,76 +1,53 @@
-import 'package:image/image.dart';
+import 'dart:io';
+import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart';
 
-// String convertImageToAsciiDart(
-//   Image image, {
-//   int width = 150,
-//   int height = 75,
-// }) {
-//   // Resize image
-//   final resizedImage = copyResize(image, width: width, height: height);
+Future<String> convertImageToAsciiDart(
+  String path, {
+  int targetWidth = 150,
+  int targetHeight = 75,
+}) async {
+  // Read file
+  final Uint8List bytes = await File(path).readAsBytes();
 
-//   // ASCII character set from darkest to lightest
-//   final asciiChars = '@%#*+=-:. ';
+  // Decode
+  final ui.Codec codec = await ui.instantiateImageCodec(
+    bytes,
+    targetWidth: targetWidth,
+    targetHeight: targetHeight,
+  );
+  final ui.FrameInfo frame = await codec.getNextFrame();
+  final ui.Image img = frame.image;
 
-//   final buffer = StringBuffer();
-//   final lineBuffer = StringBuffer();
+  // Copy RGBA bytes once
+  final ByteData bd =
+      (await img.toByteData(format: ui.ImageByteFormat.rawRgba))!;
+  final Uint8List rgba = bd.buffer.asUint8List();
 
-//   // Convert each pixel to an ASCII character
-//   for (int y = 0; y < resizedImage.height; y++) {
-//     lineBuffer.clear();
-//     for (int x = 0; x < resizedImage.width; x++) {
-//       final pixel = resizedImage.getPixel(x, y);
+  // Loop in background isolate
+  return compute(_rgbaToAscii, _AsciiPayload(rgba, img.width, img.height));
+}
 
-//       // Calculate grayscale value
-//       final grayscale = (getRed(pixel) + getGreen(pixel) + getBlue(pixel)) ~/ 3;
+class _AsciiPayload {
+  final Uint8List buf;
+  final int w, h;
+  const _AsciiPayload(this.buf, this.w, this.h);
+}
 
-//       // Map grayscale value to ASCII character
-//       final index = ((grayscale / 255) * (asciiChars.length - 1)).round();
-//       lineBuffer.write(asciiChars[index]);
-//     }
-//     buffer.writeln(lineBuffer.toString());
-//   }
-//   return buffer.toString();
-// }
+String _rgbaToAscii(_AsciiPayload p) {
+  const chars = '@%#*+=-:. ';
+  final sb = StringBuffer();
 
-String convertImageToAsciiDart(
-  Image image, {
-  int width = 150,
-  int height = 75,
-}) {
-  final targetWidth = width;
-  final targetHeight = height;
-
-  const asciiChars = '@%#*+=-:. ';
-  final numChars = asciiChars.length - 1;
-
-  final buffer = StringBuffer();
-  final lineBuffer = StringBuffer();
-
-  // Calculate scaling factors
-  final xStep = image.width / targetWidth;
-  final yStep = image.height / targetHeight;
-
-  for (int y = 0; y < targetHeight; y++) {
-    lineBuffer.clear();
-    final srcY = (y * yStep).round().clamp(0, image.height - 1);
-
-    for (int x = 0; x < targetWidth; x++) {
-      final srcX = (x * xStep).round().clamp(0, image.width - 1);
-
-      final pixel = image.getPixel(srcX, srcY);
-
-      // Calculate grayscale value
-      final grayscale =
-          (0.299 * getRed(pixel) +
-                  0.587 * getGreen(pixel) +
-                  0.114 * getBlue(pixel))
-              .round();
-
-      // Map grayscale value to ASCII character
-      final index = ((grayscale * numChars) ~/ 255);
-      lineBuffer.write(asciiChars[index]);
+  for (int y = 0; y < p.h; y++) {
+    for (int x = 0; x < p.w; x++) {
+      final i = (y * p.w + x) << 2; // 4 bytes per pixel
+      final r = p.buf[i];
+      final g = p.buf[i + 1];
+      final b = p.buf[i + 2];
+      final gray = (0.299 * r + 0.587 * g + 0.114 * b).toInt();
+      sb.write(chars[(gray * (chars.length - 1)) ~/ 255]);
     }
-    buffer.writeln(lineBuffer.toString());
+    sb.writeln();
   }
-  return buffer.toString();
+  return sb.toString();
 }

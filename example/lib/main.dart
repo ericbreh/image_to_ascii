@@ -1,9 +1,6 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:async';
-import 'package:image/image.dart' as img;
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_to_ascii/image_to_ascii.dart';
@@ -73,38 +70,21 @@ class _MyAppState extends State<MyApp> {
     final XFile? imageLocal = await picker.pickImage(
       source: ImageSource.gallery,
     );
+    if (imageLocal == null) return;
 
-    if (imageLocal != null) {
-      setState(() {
-        _isLoadingImage = true;
-      });
+    setState(() => _isLoadingImage = true);
+    final stopwatch = Stopwatch()..start();
 
-      final stopwatch = Stopwatch()..start();
+    final ascii = await _imageToAsciiPlugin.convertImageToAscii(
+      imageLocal.path,
+    );
 
-      // Load image
-      File imageFile = File(imageLocal.path);
-      final bytes = await imageFile.readAsBytes();
-      final img.Image? decodedImage = img.decodeImage(bytes);
-      if (decodedImage == null) throw Exception('Image decode failed');
-
-      stopwatch.stop();
-      final loadTime = stopwatch.elapsedMilliseconds;
-      stopwatch.reset();
-      stopwatch.start();
-
-      // Convert to ASCII
-      final ascii = _imageToAsciiPlugin.convertImageToAscii(decodedImage);
-
-      stopwatch.stop();
-      final convertTime = stopwatch.elapsedMilliseconds;
-
-      setState(() {
-        _isLoadingImage = false;
-        _asciiArt = ascii;
-        _loadingTime = 'Loading time: ${loadTime}ms';
-        _conversionTime = 'Conversion time: ${convertTime}ms';
-      });
-    }
+    stopwatch.stop();
+    setState(() {
+      _isLoadingImage = false;
+      _asciiArt = ascii;
+      _loadingTime = 'Load & Convert time: ${stopwatch.elapsedMilliseconds} ms';
+    });
   }
 
   @override
