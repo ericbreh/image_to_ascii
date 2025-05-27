@@ -27,7 +27,6 @@ class _MyAppState extends State<MyApp> {
   String _asciiArt = '';
   String _loadingTime = '';
   String _conversionTime = '';
-  img.Image? _decodedImage;
 
   bool _isLoadingImage = false;
 
@@ -60,63 +59,29 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  Future<void> _loadConvertImage() async {
-    final stopwatch = Stopwatch()..start();
-
-    // Load asset
-    final byteData = await rootBundle.load('assets/eko.png');
-    final bytes = byteData.buffer.asUint8List();
-
-    // Decode image using image package
-    final image = img.decodeImage(bytes);
-    if (image == null) throw Exception('Image decode failed');
-
-    stopwatch.stop();
-    final loadTime = stopwatch.elapsedMilliseconds;
-
-    setState(() {
-      _decodedImage = image;
-      _loadingTime = 'Loading time: ${loadTime}ms';
-    });
-
-    stopwatch.reset();
-    stopwatch.start();
-
-    // Convert to ASCII
-    final ascii = _imageToAsciiPlugin.convertImageToAscii(_decodedImage!);
-
-    stopwatch.stop();
-    final convertTime = stopwatch.elapsedMilliseconds;
-
-    if (!mounted) return;
-    setState(() {
-      _asciiArt = ascii;
-      _conversionTime = 'Conversion time: ${convertTime}ms';
-    });
-  }
-
   void _clearAll() {
     setState(() {
       _asciiArt = '';
       _loadingTime = '';
       _conversionTime = '';
-      _decodedImage = null;
     });
   }
 
-  Future<void> _addImagePressed() async {
-    setState(() {
-      _isLoadingImage = true;
-    });
-
+  Future<void> _selectImagePressed() async {
+    // Select image
     final ImagePicker picker = ImagePicker();
     final XFile? imageLocal = await picker.pickImage(
       source: ImageSource.gallery,
     );
 
     if (imageLocal != null) {
+      setState(() {
+        _isLoadingImage = true;
+      });
+
       final stopwatch = Stopwatch()..start();
 
+      // Load image
       File imageFile = File(imageLocal.path);
       final bytes = await imageFile.readAsBytes();
       final img.Image? decodedImage = img.decodeImage(bytes);
@@ -124,27 +89,22 @@ class _MyAppState extends State<MyApp> {
 
       stopwatch.stop();
       final loadTime = stopwatch.elapsedMilliseconds;
-
-      setState(() {
-        _loadingTime = 'Loading time: ${loadTime}ms';
-      });
-
       stopwatch.reset();
       stopwatch.start();
 
+      // Convert to ASCII
       final ascii = _imageToAsciiPlugin.convertImageToAscii(decodedImage);
 
       stopwatch.stop();
       final convertTime = stopwatch.elapsedMilliseconds;
 
       setState(() {
+        _isLoadingImage = false;
         _asciiArt = ascii;
+        _loadingTime = 'Loading time: ${loadTime}ms';
         _conversionTime = 'Conversion time: ${convertTime}ms';
       });
     }
-    setState(() {
-      _isLoadingImage = false;
-    });
   }
 
   @override
@@ -157,25 +117,28 @@ class _MyAppState extends State<MyApp> {
           children: [
             Padding(
               padding: EdgeInsets.all(15),
-              child: FittedBox(
-                fit: BoxFit.contain,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(100),
-                  child: Text(
-                    _asciiArt,
-                    style: GoogleFonts.martianMono(
-                      textStyle: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black,
-                        fontSize: 25,
-                        height: 1.0,
+              child:
+                  (_isLoadingImage)
+                      ? const Text("Loading...")
+                      : FittedBox(
+                        fit: BoxFit.contain,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(100),
+                          child: Text(
+                            _asciiArt,
+                            style: GoogleFonts.martianMono(
+                              textStyle: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: Colors.black,
+                                fontSize: 25,
+                                height: 1.0,
+                              ),
+                            ),
+                            softWrap: false,
+                            overflow: TextOverflow.clip,
+                          ),
+                        ),
                       ),
-                    ),
-                    softWrap: false,
-                    overflow: TextOverflow.clip,
-                  ),
-                ),
-              ),
             ),
             if (_loadingTime.isNotEmpty)
               Padding(
@@ -203,8 +166,8 @@ class _MyAppState extends State<MyApp> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 ElevatedButton(
-                  onPressed: _addImagePressed,
-                  child: const Text('Load & Convert'),
+                  onPressed: _selectImagePressed,
+                  child: const Text('Select Image'),
                 ),
                 const SizedBox(width: 16),
                 ElevatedButton(

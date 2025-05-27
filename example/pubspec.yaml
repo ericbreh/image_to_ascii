@@ -49,8 +49,8 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   
-  assets:
-      - assets/eko.png
+  # assets:
+  #     - assets/eko.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
