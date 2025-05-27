@@ -2,10 +2,10 @@ import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 
-Future<String> convertImageToAsciiDart(
-  String path, {
-  int targetWidth = 150,
-  int targetHeight = 75,
+Future<String> convertImageToAsciiDart({
+  required String path,
+  required int width,
+  required int height,
 }) async {
   // Read file
   final Uint8List bytes = await File(path).readAsBytes();
@@ -13,8 +13,8 @@ Future<String> convertImageToAsciiDart(
   // Decode
   final ui.Codec codec = await ui.instantiateImageCodec(
     bytes,
-    targetWidth: targetWidth,
-    targetHeight: targetHeight,
+    targetWidth: width,
+    targetHeight: height,
   );
   final ui.FrameInfo frame = await codec.getNextFrame();
   final ui.Image img = frame.image;
@@ -25,7 +25,8 @@ Future<String> convertImageToAsciiDart(
   final Uint8List rgba = bd.buffer.asUint8List();
 
   // Loop in background isolate
-  return compute(_rgbaToAscii, _AsciiPayload(rgba, img.width, img.height));
+  // return compute(_rgbaToAscii, _AsciiPayload(rgba, img.width, img.height));
+  return _rgbaToAscii(_AsciiPayload(rgba, img.width, img.height));
 }
 
 class _AsciiPayload {

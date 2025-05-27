@@ -6,8 +6,16 @@ class ImageToAscii {
     return ImageToAsciiPlatform.instance.getPlatformVersion();
   }
 
-  Future<String> convertImageToAscii(String path) async {
-    /// Dart-based fallback
-    return await convertImageToAsciiDart(path);
+  /// Converts an image to ASCII art
+  Future<String> convertImageToAscii(
+    String path, {
+    int width = 150,
+    int height = 75,
+  }) async {
+    return await convertImageToAsciiDart(
+      path: path,
+      width: width,
+      height: height,
+    );
   }
 }
