@@ -1,17 +1,16 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_to_ascii/image_to_ascii.dart';
+import 'package:image_to_ascii/ascii_camera_controller.dart';
 
-void main() {
-  runApp(const MyApp());
-}
+void main() =>
+    runApp(MaterialApp(debugShowCheckedModeBanner: false, home: const MyApp()));
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
-
   @override
   State<MyApp> createState() => _MyAppState();
 }
@@ -19,148 +18,152 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   final _imageToAsciiPlugin = ImageToAscii();
 
-  String _platformVersion = 'Unknown';
-
   String _asciiArt = '';
   String _loadingTime = '';
-  String _conversionTime = '';
-
-  bool _isLoadingImage = false;
+  bool _isLoading = false;
+  String _platformVersion = 'Unknown';
 
   @override
   void initState() {
     super.initState();
-    initPlatformState();
+    _initPlatform();
   }
 
-  // Platform messages are asynchronous, so we initialize in an async method.
-  Future<void> initPlatformState() async {
-    String platformVersion;
-    // Platform messages may fail, so we use a try/catch PlatformException.
-    // We also handle the message potentially returning null.
+  Future<void> _initPlatform() async {
     try {
-      platformVersion =
-          await _imageToAsciiPlugin.getPlatformVersion() ??
-          'Unknown platform version';
+      _platformVersion =
+          await _imageToAsciiPlugin.getPlatformVersion() ?? 'Unknown platform';
     } on PlatformException {
-      platformVersion = 'Failed to get platform version.';
+      _platformVersion = 'Failed to get platform version.';
     }
-
-    // If the widget was removed from the tree while the asynchronous platform
-    // message was in flight, we want to discard the reply rather than calling
-    // setState to update our non-existent appearance.
-    if (!mounted) return;
-
-    setState(() {
-      _platformVersion = platformVersion;
-    });
+    if (mounted) setState(() {});
   }
 
-  void _clearAll() {
+  void _clearAll() => setState(() {
+    _asciiArt = '';
+    _loadingTime = '';
+  });
+
+  Future<void> _selectImage() async {
+    final picker = ImagePicker();
+    final XFile? picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked == null) return;
+
+    setState(() => _isLoading = true);
+    final sw = Stopwatch()..start();
+
+    final ascii = await _imageToAsciiPlugin.convertImageToAscii(picked.path);
+
+    sw.stop();
     setState(() {
-      _asciiArt = '';
-      _loadingTime = '';
-      _conversionTime = '';
-    });
-  }
-
-  Future<void> _selectImagePressed() async {
-    // Select image
-    final ImagePicker picker = ImagePicker();
-    final XFile? imageLocal = await picker.pickImage(
-      source: ImageSource.gallery,
-    );
-    if (imageLocal == null) return;
-
-    setState(() => _isLoadingImage = true);
-    final stopwatch = Stopwatch()..start();
-
-    final ascii = await _imageToAsciiPlugin.convertImageToAscii(
-      imageLocal.path,
-    );
-
-    stopwatch.stop();
-    setState(() {
-      _isLoadingImage = false;
       _asciiArt = ascii;
-      _loadingTime = 'Load & Convert time: ${stopwatch.elapsedMilliseconds} ms';
+      _loadingTime = 'Load & Convert: ${sw.elapsedMilliseconds} ms';
+      _isLoading = false;
+    });
+  }
+
+  void _openCamera() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const AsciiCameraPage()));
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('ASCII Image Converter')),
+    body: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(15),
+          child:
+              _isLoading
+                  ? const Text('Loading …')
+                  : FittedBox(
+                    fit: BoxFit.contain,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(100),
+                      child: Text(
+                        _asciiArt,
+                        style: GoogleFonts.martianMono(
+                          fontSize: 25,
+                          fontWeight: FontWeight.w700,
+                          height: 1.0,
+                          color: Colors.black,
+                        ),
+                        softWrap: false,
+                      ),
+                    ),
+                  ),
+        ),
+        if (_loadingTime.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              _loadingTime,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ElevatedButton(onPressed: _openCamera, child: const Text('Camera')),
+            const SizedBox(width: 12),
+            ElevatedButton(
+              onPressed: _selectImage,
+              child: const Text('Select Image'),
+            ),
+            const SizedBox(width: 12),
+
+            ElevatedButton(onPressed: _clearAll, child: const Text('Clear')),
+          ],
+        ),
+        const SizedBox(height: 20),
+        Text('Running on: $_platformVersion'),
+      ],
+    ),
+  );
+}
+
+class AsciiCameraPage extends StatefulWidget {
+  const AsciiCameraPage({super.key});
+  @override
+  State<AsciiCameraPage> createState() => _AsciiCameraPageState();
+}
+
+class _AsciiCameraPageState extends State<AsciiCameraPage> {
+  late final AsciiCameraController _ctrl;
+  String _frame = 'Starting camera …';
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AsciiCameraController();
+    _ctrl.initialize().then((_) {
+      _ctrl.stream.listen((ascii) => setState(() => _frame = ascii));
     });
   }
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(title: const Text('ASCII Image Converter')),
-        body: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Padding(
-              padding: EdgeInsets.all(15),
-              child:
-                  (_isLoadingImage)
-                      ? const Text("Loading...")
-                      : FittedBox(
-                        fit: BoxFit.contain,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(100),
-                          child: Text(
-                            _asciiArt,
-                            style: GoogleFonts.martianMono(
-                              textStyle: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                color: Colors.black,
-                                fontSize: 25,
-                                height: 1.0,
-                              ),
-                            ),
-                            softWrap: false,
-                            overflow: TextOverflow.clip,
-                          ),
-                        ),
-                      ),
-            ),
-            if (_loadingTime.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8.0),
-                child: Text(
-                  _loadingTime,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-            if (_conversionTime.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16.0),
-                child: Text(
-                  _conversionTime,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton(
-                  onPressed: _selectImagePressed,
-                  child: const Text('Select Image'),
-                ),
-                const SizedBox(width: 16),
-                ElevatedButton(
-                  onPressed: _clearAll,
-                  child: const Text('Clear'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Text('Running on: $_platformVersion\n'),
-          ],
-        ),
-      ),
-    );
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
   }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Live ASCII Camera')),
+    body: SingleChildScrollView(
+      child: Text(
+        _frame,
+        style: GoogleFonts.martianMono(
+          fontSize: 6,
+          fontWeight: FontWeight.w700,
+          height: 1.0,
+          color: Colors.black,
+        ),
+        softWrap: false,
+      ),
+    ),
+  );
 }

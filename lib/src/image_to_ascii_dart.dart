@@ -33,7 +33,6 @@ Future<String> convertImageToAsciiDart({
   swCopy.stop();
 
   // ASCII conversion
-  // return compute(_rgbaToAscii, _AsciiPayload(rgba, img.width, img.height));
   final swAscii = Stopwatch()..start();
   final ascii = _rgbaToAscii(_AsciiPayload(rgba, img.width, img.height));
   swAscii.stop();

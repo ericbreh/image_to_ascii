@@ -27,6 +27,7 @@ dependencies:
     # The example app is bundled with the plugin so we use a path dependency on
     # the parent directory to use the current plugin's version.
     path: ../
+  camera: ^0.11.1
 
 dev_dependencies:
   integration_test:
