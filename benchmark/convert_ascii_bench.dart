@@ -23,7 +23,7 @@ class AsciiBench extends BenchmarkBase {
   @override
   Future<void> run() async {
     // The harness calls this in a tight loop and averages the time
-    await convertImageToAsciiDart(_imagePath);
+    await convertImageToAsciiDart(path: _imagePath);
   }
 }
 

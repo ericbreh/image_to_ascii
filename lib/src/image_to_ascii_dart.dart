@@ -4,13 +4,18 @@ import 'package:flutter/foundation.dart';
 
 Future<String> convertImageToAsciiDart({
   required String path,
-  required int width,
-  required int height,
+  int width = 150,
+  int height = 75,
 }) async {
+  final swAll = Stopwatch()..start();
+
   // Read file
+  final swRead = Stopwatch()..start();
   final Uint8List bytes = await File(path).readAsBytes();
+  swRead.stop();
 
   // Decode
+  final swDecode = Stopwatch()..start();
   final ui.Codec codec = await ui.instantiateImageCodec(
     bytes,
     targetWidth: width,
@@ -18,15 +23,30 @@ Future<String> convertImageToAsciiDart({
   );
   final ui.FrameInfo frame = await codec.getNextFrame();
   final ui.Image img = frame.image;
+  swDecode.stop();
 
   // Copy RGBA bytes once
+  final swCopy = Stopwatch()..start();
   final ByteData bd =
       (await img.toByteData(format: ui.ImageByteFormat.rawRgba))!;
   final Uint8List rgba = bd.buffer.asUint8List();
+  swCopy.stop();
 
-  // Loop in background isolate
+  // ASCII conversion
   // return compute(_rgbaToAscii, _AsciiPayload(rgba, img.width, img.height));
-  return _rgbaToAscii(_AsciiPayload(rgba, img.width, img.height));
+  final swAscii = Stopwatch()..start();
+  final ascii = _rgbaToAscii(_AsciiPayload(rgba, img.width, img.height));
+  swAscii.stop();
+
+  swAll.stop();
+
+  debugPrint('read   : ${swRead.elapsedMilliseconds} ms');
+  debugPrint('decode : ${swDecode.elapsedMilliseconds} ms');
+  debugPrint('copy   : ${swCopy.elapsedMilliseconds} ms');
+  debugPrint('ASCII  : ${swAscii.elapsedMilliseconds} ms');
+  debugPrint('TOTAL  : ${swAll.elapsedMilliseconds} ms');
+
+  return ascii;
 }
 
 class _AsciiPayload {
