@@ -11,11 +11,13 @@ class ImageToAscii {
     String path, {
     int width = 150,
     int height = 75,
+    bool darkMode = false,
   }) async {
     return await convertImageToAsciiDart(
       path: path,
       width: width,
       height: height,
+      darkMode: darkMode,
     );
   }
 }
