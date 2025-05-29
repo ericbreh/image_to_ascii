@@ -9,12 +9,12 @@ class ImageToAscii {
   /// Converts an image to ASCII art
   Future<String> convertImageToAscii(
     String path, {
-    int width = 150,
-    int height = 75,
+    int? width,
+    int? height,
     bool darkMode = false,
   }) async {
     return await convertImageToAsciiDart(
-      path: path,
+      path,
       width: width,
       height: height,
       darkMode: darkMode,
