@@ -15,16 +15,13 @@ Future<String> convertImageToAsciiDart(
   final Uint8List bytes = await File(path).readAsBytes();
   swRead.stop();
 
-  // Calculate dimensions based on parameters
+  // Determine dimensions
   int targetWidth;
   int targetHeight;
-
   if (width != null && height != null) {
-    // Both dimensions provided - use as is without calculating aspect ratio
     targetWidth = width;
     targetHeight = height;
   } else {
-    // Need to calculate aspect ratio for the remaining cases
     final swOrigDims = Stopwatch()..start();
     final ui.Codec infoCodec = await ui.instantiateImageCodec(bytes);
     final ui.FrameInfo infoFrame = await infoCodec.getNextFrame();
@@ -34,15 +31,12 @@ Future<String> convertImageToAsciiDart(
     debugPrint('get dims: ${swOrigDims.elapsedMilliseconds} ms');
 
     if (width != null) {
-      // Only width provided - calculate height from aspect ratio
       targetWidth = width;
       targetHeight = (targetWidth / aspectRatio).round();
     } else if (height != null) {
-      // Only height provided - calculate width from aspect ratio
       targetHeight = height;
       targetWidth = (targetHeight * aspectRatio).round();
     } else {
-      // Neither provided - default to width=150 and calculate height
       targetWidth = 150;
       targetHeight = (targetWidth / aspectRatio).round();
     }
