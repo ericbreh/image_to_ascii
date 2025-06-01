@@ -7,6 +7,7 @@ Future<String> convertImageToAsciiDart(
   int? width,
   int? height,
   bool darkMode = false,
+  bool color = false,
 }) async {
   final swAll = Stopwatch()..start();
 
@@ -53,7 +54,7 @@ Future<String> convertImageToAsciiDart(
   final ui.Image img = frame.image;
   swDecode.stop();
 
-  // Copy RGBA bytes
+  // Get RGBA
   final swCopy = Stopwatch()..start();
   final ByteData bd =
       (await img.toByteData(format: ui.ImageByteFormat.rawRgba))!;
@@ -67,12 +68,22 @@ Future<String> convertImageToAsciiDart(
 
   for (int y = 0; y < targetHeight; y++) {
     for (int x = 0; x < targetWidth; x++) {
-      final i = (y * targetWidth + x) << 2; // 4 bytes per pixel
+      final i = (y * targetWidth + x) << 2;
       final r = rgba[i];
       final g = rgba[i + 1];
       final b = rgba[i + 2];
       final gray = (0.299 * r + 0.587 * g + 0.114 * b).toInt();
-      sb.write(chars[(gray * (chars.length - 1)) ~/ 255]);
+      final ch = chars[(gray * (chars.length - 1)) ~/ 255];
+
+      if (color) {
+        final hex =
+            r.toRadixString(16).padLeft(2, '0') +
+            g.toRadixString(16).padLeft(2, '0') +
+            b.toRadixString(16).padLeft(2, '0');
+        sb.write('[#${hex.toUpperCase()}]$ch');
+      } else {
+        sb.write(ch);
+      }
     }
     sb.writeln();
   }

@@ -12,12 +12,14 @@ class ImageToAscii {
     int? width,
     int? height,
     bool darkMode = false,
+    bool color = false,
   }) async {
     return await convertImageToAsciiDart(
       path,
       width: width,
       height: height,
       darkMode: darkMode,
+      color: color,
     );
   }
 }
