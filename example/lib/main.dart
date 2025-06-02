@@ -13,99 +13,68 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  String _asciiArt = '';
-  String _loadingTime = '';
-  bool _isLoading = false;
+  late final AsciiCameraController _ctrl;
+  String frame = 'Starting camera …';
+  XFile? selectedImage;
+  String? asciiArt;
+  String? loadingTime;
+  bool isLoading = false;
+  bool isDarkMode = true;
 
-  void _clearAll() => setState(() {
-    _asciiArt = '';
-    _loadingTime = '';
+  void clearAll() => setState(() {
+    asciiArt = null;
+    loadingTime = null;
   });
 
-  Future<void> _selectImage() async {
+  Future<void> pickImage() async {
     final picker = ImagePicker();
     final XFile? picked = await picker.pickImage(source: ImageSource.gallery);
     if (picked == null) return;
 
-    setState(() => _isLoading = true);
+    setState(() {
+      selectedImage = picked;
+    });
+
+    await convertImage();
+  }
+
+  Future<void> convertImage() async {
+    if (selectedImage == null) return;
+
+    setState(() {
+      isLoading = true;
+    });
+
     final sw = Stopwatch()..start();
 
-    final ascii = await convertImageToAscii(picked.path);
+    final ascii = await convertImageToAscii(
+      selectedImage!.path,
+      darkMode: isDarkMode,
+      color: false,
+    );
 
     sw.stop();
+
     setState(() {
-      _asciiArt = ascii;
-      _loadingTime = 'Load & Convert: ${sw.elapsedMilliseconds} ms';
-      _isLoading = false;
+      asciiArt = ascii;
+      loadingTime = 'Load & Convert: ${sw.elapsedMilliseconds} ms';
+      isLoading = false;
     });
   }
 
-  void _openCamera() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const AsciiCameraPage()));
+  void toggleDarkMode() {
+    setState(() {
+      isDarkMode = !isDarkMode;
+    });
+    convertImage();
   }
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('ASCII Image Converter')),
-    body: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(15),
-          child:
-              _isLoading
-                  ? const Text('Loading …')
-                  : SizedBox(
-                    width: 300,
-                    height: 500,
-                    child: AsciiImageWidget(ascii: _asciiArt),
-                  ),
-        ),
-        if (_loadingTime.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
-              _loadingTime,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-          ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ElevatedButton(onPressed: _openCamera, child: const Text('Camera')),
-            const SizedBox(width: 12),
-            ElevatedButton(
-              onPressed: _selectImage,
-              child: const Text('Select Image'),
-            ),
-            const SizedBox(width: 12),
-
-            ElevatedButton(onPressed: _clearAll, child: const Text('Clear')),
-          ],
-        ),
-      ],
-    ),
-  );
-}
-
-class AsciiCameraPage extends StatefulWidget {
-  const AsciiCameraPage({super.key});
-  @override
-  State<AsciiCameraPage> createState() => _AsciiCameraPageState();
-}
-
-class _AsciiCameraPageState extends State<AsciiCameraPage> {
-  late final AsciiCameraController _ctrl;
-  String _frame = 'Starting camera …';
 
   @override
   void initState() {
     super.initState();
     _ctrl = AsciiCameraController();
     _ctrl.initialize().then((_) {
-      _ctrl.stream.listen((ascii) => setState(() => _frame = ascii));
+      _ctrl.stream.listen((ascii) => setState(() => frame = ascii));
     });
   }
 
@@ -116,8 +85,76 @@ class _AsciiCameraPageState extends State<AsciiCameraPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Live ASCII Camera')),
-    body: SizedBox(width: 300, child: AsciiImageWidget(ascii: _frame)),
-  );
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('ASCII Image Converter')),
+      body: Column(
+        children: [
+          Expanded(
+            child:
+                isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : asciiArt != null
+                    ? Column(
+                      children: [
+                        SizedBox(
+                          width: 500,
+                          height: 600,
+                          child: AsciiImageWidget(ascii: asciiArt!),
+                        ),
+                        if (loadingTime != null)
+                          Text(
+                            loadingTime!,
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                      ],
+                    )
+                    : SizedBox(
+                      width: 500,
+                      height: 600,
+                      child: AsciiImageWidget(ascii: frame),
+                    ),
+          ),
+
+          // Bottom toolbar
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      onPressed: pickImage,
+                      icon: Icon(
+                        Icons.perm_media,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                    if (asciiArt != null) ...[
+                      IconButton(
+                        onPressed: toggleDarkMode,
+                        icon: Icon(
+                          (isDarkMode) ? Icons.dark_mode : Icons.light_mode,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: clearAll,
+                        icon: Icon(
+                          Icons.delete,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
