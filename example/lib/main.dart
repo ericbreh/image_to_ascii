@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_to_ascii/image_to_ascii.dart';
 
@@ -58,21 +57,10 @@ class _MyAppState extends State<MyApp> {
           child:
               _isLoading
                   ? const Text('Loading …')
-                  : FittedBox(
-                    fit: BoxFit.contain,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(100),
-                      child: Text(
-                        _asciiArt,
-                        style: GoogleFonts.martianMono(
-                          fontSize: 25,
-                          fontWeight: FontWeight.w700,
-                          height: 1.0,
-                          color: Colors.black,
-                        ),
-                        softWrap: false,
-                      ),
-                    ),
+                  : SizedBox(
+                    width: 300,
+                    height: 500,
+                    child: AsciiImageWidget(ascii: _asciiArt),
                   ),
         ),
         if (_loadingTime.isNotEmpty)
@@ -130,17 +118,6 @@ class _AsciiCameraPageState extends State<AsciiCameraPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Live ASCII Camera')),
-    body: SingleChildScrollView(
-      child: Text(
-        _frame,
-        style: GoogleFonts.martianMono(
-          fontSize: 6,
-          fontWeight: FontWeight.w700,
-          height: 1.0,
-          color: Colors.black,
-        ),
-        softWrap: false,
-      ),
-    ),
+    body: SizedBox(width: 300, child: AsciiImageWidget(ascii: _frame)),
   );
 }
