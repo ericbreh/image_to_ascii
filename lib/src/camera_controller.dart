@@ -1,23 +1,30 @@
 import 'dart:async';
 import 'dart:isolate';
-import 'dart:typed_data';
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 
 class AsciiCameraController {
   AsciiCameraController({
-    this.asciiWidth = 150,
-    this.asciiHeight = 75,
+    this.width = 150,
+    this.height,
     this.preset = ResolutionPreset.low,
+    this.darkMode = false,
   });
 
-  final int asciiWidth, asciiHeight;
+  final int? width;
+  final int? height;
   final ResolutionPreset preset;
+  final bool darkMode;
 
   late CameraController _cam;
   late Isolate _worker;
   late SendPort _workerSend;
   final _asciiStreamCtrl = StreamController<String>.broadcast();
   bool _workerBusy = false;
+
+  // Calculated dimensions
+  late int _targetWidth;
+  late int _targetHeight;
 
   // ───────────────────────── public stream ──────────────────────────
   Stream<String> get stream => _asciiStreamCtrl.stream;
@@ -33,6 +40,9 @@ class AsciiCameraController {
     );
     await _cam.initialize();
 
+    // Calculate dimensions based on camera aspect ratio
+    _calculateDimensions();
+
     // spawn the worker once
     final recvMain = ReceivePort();
     _worker = await Isolate.spawn(_workerEntry, recvMain.sendPort);
@@ -40,6 +50,32 @@ class AsciiCameraController {
 
     // start stream
     await _cam.startImageStream(_onFrame);
+  }
+
+  void _calculateDimensions() {
+    final previewSize = _cam.value.previewSize;
+    if (previewSize == null) {
+      // Fallback if preview size is unavailable
+      _targetWidth = width ?? 150;
+      _targetHeight = height ?? 75;
+      return;
+    }
+
+    final double aspectRatio = previewSize.width / previewSize.height;
+
+    if (width != null && height != null) {
+      _targetWidth = width!;
+      _targetHeight = height!;
+    } else if (width != null) {
+      _targetWidth = width!;
+      _targetHeight = (_targetWidth / aspectRatio).round();
+    } else if (height != null) {
+      _targetHeight = height!;
+      _targetWidth = (_targetHeight * aspectRatio).round();
+    } else {
+      _targetWidth = 150;
+      _targetHeight = (_targetWidth / aspectRatio).round();
+    }
   }
 
   Future<void> dispose() async {
@@ -58,8 +94,9 @@ class AsciiCameraController {
       img.planes[0].bytes, // Y plane
       img.width,
       img.height,
-      asciiWidth,
-      asciiHeight,
+      _targetWidth,
+      _targetHeight,
+      darkMode,
     );
 
     final reply = ReceivePort();
@@ -75,19 +112,29 @@ class AsciiCameraController {
 class _Payload {
   final Uint8List y;
   final int srcW, srcH, outW, outH;
-  const _Payload(this.y, this.srcW, this.srcH, this.outW, this.outH);
+  final bool darkMode;
+
+  const _Payload(
+    this.y,
+    this.srcW,
+    this.srcH,
+    this.outW,
+    this.outH,
+    this.darkMode,
+  );
 }
 
 void _workerEntry(SendPort mainSend) {
   final recv = ReceivePort();
   mainSend.send(recv.sendPort);
 
-  const chars = '@%#*+=-:. ';
   final sb = StringBuffer();
 
   recv.listen((msg) {
     final _Payload p = msg[0] as _Payload;
     final SendPort ret = msg[1] as SendPort;
+
+    final chars = p.darkMode ? ' .:-=+*#%@' : '@%#*+=-:. ';
 
     final stepX = p.srcH / p.outW;
     final stepY = p.srcW / p.outH;
@@ -97,8 +144,14 @@ void _workerEntry(SendPort mainSend) {
       for (int ax = 0; ax < p.outW; ax++) {
         final y = p.srcH - (ax * stepX).floor() - 1;
         final x = (ay * stepY).floor();
-        final lum = p.y[y * p.srcW + x];
-        sb.write(chars[(lum * (chars.length - 1)) >> 8]);
+
+        // Ensure we don't access outside the array bounds
+        if (y >= 0 && y < p.srcH && x >= 0 && x < p.srcW) {
+          final lum = p.y[y * p.srcW + x];
+          sb.write(chars[(lum * (chars.length - 1)) ~/ 255]);
+        } else {
+          sb.write(' ');
+        }
       }
       sb.writeln();
     }

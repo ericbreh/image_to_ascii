@@ -72,7 +72,7 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    _ctrl = AsciiCameraController();
+    _ctrl = AsciiCameraController(darkMode: false);
     _ctrl.initialize().then((_) {
       _ctrl.stream.listen((ascii) => setState(() => frame = ascii));
     });
@@ -91,29 +91,32 @@ class _MyAppState extends State<MyApp> {
       body: Column(
         children: [
           Expanded(
-            child:
-                isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : asciiArt != null
-                    ? Column(
-                      children: [
-                        SizedBox(
-                          width: 500,
-                          height: 600,
-                          child: AsciiImageWidget(ascii: asciiArt!),
-                        ),
-                        if (loadingTime != null)
-                          Text(
-                            loadingTime!,
-                            style: const TextStyle(fontSize: 16),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child:
+                  isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : asciiArt != null
+                      ? Column(
+                        children: [
+                          SizedBox(
+                            width: 500,
+                            height: 600,
+                            child: AsciiImageWidget(ascii: asciiArt!),
                           ),
-                      ],
-                    )
-                    : SizedBox(
-                      width: 500,
-                      height: 600,
-                      child: AsciiImageWidget(ascii: frame),
-                    ),
+                          if (loadingTime != null)
+                            Text(
+                              loadingTime!,
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                        ],
+                      )
+                      : SizedBox(
+                        width: 500,
+                        height: 600,
+                        child: AsciiImageWidget(ascii: frame),
+                      ),
+            ),
           ),
 
           // Bottom toolbar
