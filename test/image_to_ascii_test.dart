@@ -4,7 +4,7 @@ import 'package:image_to_ascii/image_to_ascii.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  final testFilePath = 'assets/eko.png';
+  final testFilePath = 'test/example.png';
 
   setUp(() {
     // Ensure test file exists
@@ -17,18 +17,15 @@ void main() {
   });
 
   test('Basic Dart conversion does not throw', () async {
-    final plugin = ImageToAscii();
-    await expectLater(plugin.convertImageToAscii(testFilePath, width: 150, height: 75), completes);
+    await expectLater(
+      convertImageToAscii(testFilePath, width: 150, height: 75),
+      completes,
+    );
   });
 
   test('Print ASCII art output', () async {
-    final plugin = ImageToAscii();
-
     // Get and print the ASCII art
-    final asciiArt = await plugin.convertImageToAscii(
-      testFilePath,
-      darkMode: true,
-    );
+    final asciiArt = await convertImageToAscii(testFilePath, darkMode: true);
     print(asciiArt);
 
     // Basic validation
@@ -36,12 +33,9 @@ void main() {
   });
 
   group('Aspect ratio preservation tests', () {
-    late ImageToAscii plugin;
     late double originalAspectRatio;
 
     setUpAll(() async {
-      plugin = ImageToAscii();
-
       // Get the original image's aspect ratio for comparison
       final bytes = await File(testFilePath).readAsBytes();
       final codec = await ui.instantiateImageCodec(bytes);
@@ -58,7 +52,7 @@ void main() {
         const int width = 80;
         const int height = 40;
 
-        final asciiArt = await plugin.convertImageToAscii(
+        final asciiArt = await convertImageToAscii(
           testFilePath,
           width: width,
           height: height,
@@ -97,10 +91,7 @@ void main() {
     test('Only width provided (height calculated from aspect ratio)', () async {
       const int width = 100;
 
-      final asciiArt = await plugin.convertImageToAscii(
-        testFilePath,
-        width: width,
-      );
+      final asciiArt = await convertImageToAscii(testFilePath, width: width);
 
       final lines = asciiArt.trim().split('\n');
       final actualHeight = lines.length;
@@ -133,10 +124,7 @@ void main() {
     test('Only height provided (width calculated from aspect ratio)', () async {
       const int height = 50;
 
-      final asciiArt = await plugin.convertImageToAscii(
-        testFilePath,
-        height: height,
-      );
+      final asciiArt = await convertImageToAscii(testFilePath, height: height);
 
       final lines = asciiArt.trim().split('\n');
       final actualHeight = lines.length;
@@ -170,7 +158,7 @@ void main() {
     test(
       'Neither width nor height provided (default width with aspect ratio)',
       () async {
-        final asciiArt = await plugin.convertImageToAscii(testFilePath);
+        final asciiArt = await convertImageToAscii(testFilePath);
 
         final lines = asciiArt.trim().split('\n');
         final actualHeight = lines.length;

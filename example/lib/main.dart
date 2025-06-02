@@ -1,10 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_to_ascii/image_to_ascii.dart';
-import 'package:image_to_ascii/ascii_camera_controller.dart';
 
 void main() =>
     runApp(MaterialApp(debugShowCheckedModeBanner: false, home: const MyApp()));
@@ -16,28 +14,9 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  final _imageToAsciiPlugin = ImageToAscii();
-
   String _asciiArt = '';
   String _loadingTime = '';
   bool _isLoading = false;
-  String _platformVersion = 'Unknown';
-
-  @override
-  void initState() {
-    super.initState();
-    _initPlatform();
-  }
-
-  Future<void> _initPlatform() async {
-    try {
-      _platformVersion =
-          await _imageToAsciiPlugin.getPlatformVersion() ?? 'Unknown platform';
-    } on PlatformException {
-      _platformVersion = 'Failed to get platform version.';
-    }
-    if (mounted) setState(() {});
-  }
 
   void _clearAll() => setState(() {
     _asciiArt = '';
@@ -52,7 +31,7 @@ class _MyAppState extends State<MyApp> {
     setState(() => _isLoading = true);
     final sw = Stopwatch()..start();
 
-    final ascii = await _imageToAsciiPlugin.convertImageToAscii(picked.path);
+    final ascii = await convertImageToAscii(picked.path);
 
     sw.stop();
     setState(() {
@@ -118,8 +97,6 @@ class _MyAppState extends State<MyApp> {
             ElevatedButton(onPressed: _clearAll, child: const Text('Clear')),
           ],
         ),
-        const SizedBox(height: 20),
-        Text('Running on: $_platformVersion'),
       ],
     ),
   );
