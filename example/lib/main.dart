@@ -14,15 +14,15 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   late final AsciiCameraController _ctrl;
-  String frame = 'Starting camera …';
+  String frame = '';
   XFile? selectedImage;
-  String? asciiArt;
+  String? asciiImage;
   String? loadingTime;
-  bool isLoading = false;
+  bool isLoading = true;
   bool isDarkMode = true;
 
   void clearAll() => setState(() {
-    asciiArt = null;
+    asciiImage = null;
     loadingTime = null;
   });
 
@@ -56,7 +56,7 @@ class _MyAppState extends State<MyApp> {
     sw.stop();
 
     setState(() {
-      asciiArt = ascii;
+      asciiImage = ascii;
       loadingTime = 'Load & Convert: ${sw.elapsedMilliseconds} ms';
       isLoading = false;
     });
@@ -74,7 +74,12 @@ class _MyAppState extends State<MyApp> {
     super.initState();
     _ctrl = AsciiCameraController(darkMode: false);
     _ctrl.initialize().then((_) {
-      _ctrl.stream.listen((ascii) => setState(() => frame = ascii));
+      _ctrl.stream.listen(
+        (ascii) => setState(() {
+          frame = ascii;
+          isLoading = false;
+        }),
+      );
     });
   }
 
@@ -96,13 +101,13 @@ class _MyAppState extends State<MyApp> {
               child:
                   isLoading
                       ? const Center(child: CircularProgressIndicator())
-                      : asciiArt != null
+                      : asciiImage != null
                       ? Column(
                         children: [
                           SizedBox(
                             width: 500,
                             height: 600,
-                            child: AsciiImageWidget(ascii: asciiArt!),
+                            child: AsciiImageWidget(ascii: asciiImage!),
                           ),
                           if (loadingTime != null)
                             Text(
@@ -135,7 +140,7 @@ class _MyAppState extends State<MyApp> {
                         color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
-                    if (asciiArt != null) ...[
+                    if (asciiImage != null) ...[
                       IconButton(
                         onPressed: toggleDarkMode,
                         icon: Icon(
