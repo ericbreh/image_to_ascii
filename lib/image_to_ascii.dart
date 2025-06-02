@@ -1,3 +1,3 @@
 export 'src/image_converter.dart';
-export 'src/ascii_camera_controller.dart';
-export 'src/ascii_image_widget.dart';
+export 'src/camera_controller.dart';
+export 'src/image_widget.dart';
