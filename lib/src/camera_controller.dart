@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:isolate';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
@@ -42,9 +43,13 @@ class AsciiCameraController {
     // Calculate dimensions based on camera aspect ratio
     _calculateDimensions();
 
-    // spawn the worker once
+    // spawn the worker
     final recvMain = ReceivePort();
-    _worker = await Isolate.spawn(_workerEntry, recvMain.sendPort);
+    if (Platform.isIOS) {
+      _worker = await Isolate.spawn(_workerIOS, recvMain.sendPort);
+    } else {
+      _worker = await Isolate.spawn(_workerAndroid, recvMain.sendPort);
+    }
     _workerSend = await recvMain.first as SendPort;
 
     // start stream
@@ -77,15 +82,6 @@ class AsciiCameraController {
     }
   }
 
-  bool _needsRotation(CameraImage img) {
-    // 0° & 180° → buffer is already “upright”; 90° & 270° → needs swap.
-    final angle = _cam.description.sensorOrientation;
-    // Some Android OEMs report 0 even though the buffer is landscape.
-    // Compare width/height as a fallback.
-    return (angle == 90 || angle == 270) ||
-        (img.width > img.height && _targetWidth < _targetHeight);
-  }
-
   Future<void> dispose() async {
     await _cam.stopImageStream();
     await _cam.dispose();
@@ -106,7 +102,6 @@ class AsciiCameraController {
       _targetHeight,
       darkMode,
       img.planes[0].bytesPerRow,
-      _needsRotation(img),
     );
 
     final reply = ReceivePort();
@@ -124,7 +119,6 @@ class _Payload {
   final int srcW, srcH, outW, outH;
   final bool darkMode;
   final int bytesPerRow;
-  final bool rotate90;
 
   const _Payload(
     this.y,
@@ -134,88 +128,11 @@ class _Payload {
     this.outH,
     this.darkMode,
     this.bytesPerRow,
-    this.rotate90,
   );
 }
 
 // android
-// void _workerEntry(SendPort mainSend) {
-//   final recv = ReceivePort();
-//   mainSend.send(recv.sendPort);
-
-//   final sb = StringBuffer();
-
-//   recv.listen((msg) {
-//     final _Payload p = msg[0] as _Payload;
-//     final SendPort ret = msg[1] as SendPort;
-
-//     final chars = p.darkMode ? ' .:-=+*#%@' : '@%#*+=-:. ';
-
-//     final stepX = p.srcH / p.outW;
-//     final stepY = p.srcW / p.outH;
-//     sb.clear();
-
-//     for (int ay = 0; ay < p.outH; ay++) {
-//       for (int ax = 0; ax < p.outW; ax++) {
-//         final y = p.srcH - (ax * stepX).floor() - 1;
-//         final x = (ay * stepY).floor();
-
-//         // Ensure we don't access outside the array bounds
-//         if (y >= 0 && y < p.srcH && x >= 0 && x < p.srcW) {
-//           final lum = p.y[y * p.srcW + x];
-//           sb.write(chars[(lum * (chars.length - 1)) ~/ 255]);
-//         } else {
-//           sb.write(' ');
-//         }
-//       }
-//       sb.writeln();
-//     }
-//     ret.send(sb.toString());
-//   });
-// }
-
-//ios
-// void _workerEntry(SendPort mainSend) {
-//   final recv = ReceivePort();
-//   mainSend.send(recv.sendPort);
-
-//   final sb = StringBuffer();
-
-//   recv.listen((msg) {
-//     final _Payload p = msg[0] as _Payload;
-//     final SendPort ret = msg[1] as SendPort;
-
-//     final chars = p.darkMode ? ' .:-=+*#%@' : '@%#*+=-:. ';
-
-//     final stepX = p.srcW / p.outW;
-//     final stepY = p.srcH / p.outH;
-//     sb.clear();
-
-//     final yStride = p.bytesPerRow;
-
-//     for (int y = 0; y < p.outH; y++) {
-//       for (int x = 0; x < p.outW; x++) {
-//         final srcX = (x * stepX).floor();
-//         final srcY = (y * stepY).floor();
-
-//         if (srcX >= 0 && srcX < p.srcW && srcY >= 0 && srcY < p.srcH) {
-//           final index = srcY * yStride + srcX;
-
-//           if (index >= 0 && index < p.y.length) {
-//             final lum = p.y[index];
-//             sb.write(chars[(lum * (chars.length - 1)) ~/ 255]);
-//           }
-//         } else {
-//           sb.write(' ');
-//         }
-//       }
-//       sb.writeln();
-//     }
-//     ret.send(sb.toString());
-//   });
-// }
-
-void _workerEntry(SendPort mainSend) {
+void _workerAndroid(SendPort mainSend) {
   final recv = ReceivePort();
   mainSend.send(recv.sendPort);
 
@@ -226,41 +143,67 @@ void _workerEntry(SendPort mainSend) {
     final SendPort ret = msg[1] as SendPort;
 
     final chars = p.darkMode ? ' .:-=+*#%@' : '@%#*+=-:. ';
-    final yStride = p.bytesPerRow;
 
-    // Pre-compute steps for both cases
-    final stepX = p.rotate90 ? p.srcH / p.outW : p.srcW / p.outW;
-    final stepY = p.rotate90 ? p.srcW / p.outH : p.srcH / p.outH;
-
+    final stepX = p.srcH / p.outW;
+    final stepY = p.srcW / p.outH;
     sb.clear();
 
-    for (int y = 0; y < p.outH; y++) {
-      for (int x = 0; x < p.outW; x++) {
-        int srcX, srcY;
+    for (int ay = 0; ay < p.outH; ay++) {
+      for (int ax = 0; ax < p.outW; ax++) {
+        final y = p.srcH - (ax * stepX).floor() - 1;
+        final x = (ay * stepY).floor();
 
-        if (p.rotate90) {
-          // 90° clockwise: swap axes + vertical flip
-          srcY = p.srcH - (x * stepX).floor() - 1;
-          srcX = (y * stepY).floor();
+        // Ensure we don't access outside the array bounds
+        if (y >= 0 && y < p.srcH && x >= 0 && x < p.srcW) {
+          final lum = p.y[y * p.srcW + x];
+          sb.write(chars[(lum * (chars.length - 1)) ~/ 255]);
         } else {
-          srcX = (x * stepX).floor();
-          srcY = (y * stepY).floor();
+          sb.write(' ');
         }
-
-        // Bounds-check
-        if (srcX >= 0 && srcX < p.srcW && srcY >= 0 && srcY < p.srcH) {
-          final index = srcY * yStride + srcX;
-          if (index < p.y.length) {
-            final lum = p.y[index];
-            sb.write(chars[(lum * (chars.length - 1)) ~/ 255]);
-            continue;
-          }
-        }
-        sb.write(' ');
       }
       sb.writeln();
     }
+    ret.send(sb.toString());
+  });
+}
 
+//ios
+void _workerIOS(SendPort mainSend) {
+  final recv = ReceivePort();
+  mainSend.send(recv.sendPort);
+
+  final sb = StringBuffer();
+
+  recv.listen((msg) {
+    final _Payload p = msg[0] as _Payload;
+    final SendPort ret = msg[1] as SendPort;
+
+    final chars = p.darkMode ? ' .:-=+*#%@' : '@%#*+=-:. ';
+
+    final stepX = p.srcW / p.outW;
+    final stepY = p.srcH / p.outH;
+    sb.clear();
+
+    final yStride = p.bytesPerRow;
+
+    for (int y = 0; y < p.outH; y++) {
+      for (int x = 0; x < p.outW; x++) {
+        final srcX = (x * stepX).floor();
+        final srcY = (y * stepY).floor();
+
+        if (srcX >= 0 && srcX < p.srcW && srcY >= 0 && srcY < p.srcH) {
+          final index = srcY * yStride + srcX;
+
+          if (index >= 0 && index < p.y.length) {
+            final lum = p.y[index];
+            sb.write(chars[(lum * (chars.length - 1)) ~/ 255]);
+          }
+        } else {
+          sb.write(' ');
+        }
+      }
+      sb.writeln();
+    }
     ret.send(sb.toString());
   });
 }
