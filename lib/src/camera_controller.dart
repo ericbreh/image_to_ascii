@@ -97,6 +97,7 @@ class AsciiCameraController {
       _targetWidth,
       _targetHeight,
       darkMode,
+      img.planes[0].bytesPerRow,
     );
 
     final reply = ReceivePort();
@@ -113,6 +114,7 @@ class _Payload {
   final Uint8List y;
   final int srcW, srcH, outW, outH;
   final bool darkMode;
+  final int bytesPerRow;
 
   const _Payload(
     this.y,
@@ -121,8 +123,44 @@ class _Payload {
     this.outW,
     this.outH,
     this.darkMode,
+    this.bytesPerRow,
   );
 }
+
+// void _workerEntry(SendPort mainSend) {
+//   final recv = ReceivePort();
+//   mainSend.send(recv.sendPort);
+
+//   final sb = StringBuffer();
+
+//   recv.listen((msg) {
+//     final _Payload p = msg[0] as _Payload;
+//     final SendPort ret = msg[1] as SendPort;
+
+//     final chars = p.darkMode ? ' .:-=+*#%@' : '@%#*+=-:. ';
+
+//     final stepX = p.srcH / p.outW;
+//     final stepY = p.srcW / p.outH;
+//     sb.clear();
+
+//     for (int ay = 0; ay < p.outH; ay++) {
+//       for (int ax = 0; ax < p.outW; ax++) {
+//         final y = p.srcH - (ax * stepX).floor() - 1;
+//         final x = (ay * stepY).floor();
+
+//         // Ensure we don't access outside the array bounds
+//         if (y >= 0 && y < p.srcH && x >= 0 && x < p.srcW) {
+//           final lum = p.y[y * p.srcW + x];
+//           sb.write(chars[(lum * (chars.length - 1)) ~/ 255]);
+//         } else {
+//           sb.write(' ');
+//         }
+//       }
+//       sb.writeln();
+//     }
+//     ret.send(sb.toString());
+//   });
+// }
 
 void _workerEntry(SendPort mainSend) {
   final recv = ReceivePort();
@@ -136,19 +174,25 @@ void _workerEntry(SendPort mainSend) {
 
     final chars = p.darkMode ? ' .:-=+*#%@' : '@%#*+=-:. ';
 
-    final stepX = p.srcH / p.outW;
-    final stepY = p.srcW / p.outH;
+    final stepX = p.srcW / p.outW;
+    final stepY = p.srcH / p.outH;
     sb.clear();
 
-    for (int ay = 0; ay < p.outH; ay++) {
-      for (int ax = 0; ax < p.outW; ax++) {
-        final y = p.srcH - (ax * stepX).floor() - 1;
-        final x = (ay * stepY).floor();
+    final yStride = p.bytesPerRow;
 
-        // Ensure we don't access outside the array bounds
-        if (y >= 0 && y < p.srcH && x >= 0 && x < p.srcW) {
-          final lum = p.y[y * p.srcW + x];
-          sb.write(chars[(lum * (chars.length - 1)) ~/ 255]);
+    for (int y = 0; y < p.outH; y++) {
+      for (int x = 0; x < p.outW; x++) {
+        final srcX = (x * stepX).floor();
+        final srcY = (y * stepY).floor();
+
+        if (srcX >= 0 && srcX < p.srcW && srcY >= 0 && srcY < p.srcH) {
+          final index = srcY * yStride + srcX;
+          
+          if (index >= 0 && index < p.y.length) {
+            final lum = p.y[index];
+            final charIndex = (lum * (chars.length - 1)) ~/ 255;
+            sb.write(chars[charIndex]);
+          }
         } else {
           sb.write(' ');
         }
