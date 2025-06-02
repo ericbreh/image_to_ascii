@@ -26,10 +26,9 @@ class AsciiCameraController {
   late int _targetWidth;
   late int _targetHeight;
 
-  // ───────────────────────── public stream ──────────────────────────
+  // Public stream
   Stream<String> get stream => _asciiStreamCtrl.stream;
 
-  // ───────────────────── lifecycle helpers ─────────────────────────
   Future<void> initialize() async {
     final cams = await availableCameras();
     _cam = CameraController(
@@ -78,6 +77,15 @@ class AsciiCameraController {
     }
   }
 
+  bool _needsRotation(CameraImage img) {
+    // 0° & 180° → buffer is already “upright”; 90° & 270° → needs swap.
+    final angle = _cam.description.sensorOrientation;
+    // Some Android OEMs report 0 even though the buffer is landscape.
+    // Compare width/height as a fallback.
+    return (angle == 90 || angle == 270) ||
+        (img.width > img.height && _targetWidth < _targetHeight);
+  }
+
   Future<void> dispose() async {
     await _cam.stopImageStream();
     await _cam.dispose();
@@ -85,7 +93,7 @@ class AsciiCameraController {
     await _asciiStreamCtrl.close();
   }
 
-  // ───────────────────── frame handler (UI isolate) ───────────────────
+  // Frame handler (UI isolate)
   void _onFrame(CameraImage img) {
     if (_workerBusy) return; // drop if still processing
     _workerBusy = true;
@@ -98,6 +106,7 @@ class AsciiCameraController {
       _targetHeight,
       darkMode,
       img.planes[0].bytesPerRow,
+      _needsRotation(img),
     );
 
     final reply = ReceivePort();
@@ -109,12 +118,13 @@ class AsciiCameraController {
   }
 }
 
-// ────────────────────────── Worker isolate ────────────────────────────
+// Worker isolate
 class _Payload {
   final Uint8List y;
   final int srcW, srcH, outW, outH;
   final bool darkMode;
   final int bytesPerRow;
+  final bool rotate90;
 
   const _Payload(
     this.y,
@@ -124,9 +134,11 @@ class _Payload {
     this.outH,
     this.darkMode,
     this.bytesPerRow,
+    this.rotate90,
   );
 }
 
+// android
 // void _workerEntry(SendPort mainSend) {
 //   final recv = ReceivePort();
 //   mainSend.send(recv.sendPort);
@@ -162,6 +174,47 @@ class _Payload {
 //   });
 // }
 
+//ios
+// void _workerEntry(SendPort mainSend) {
+//   final recv = ReceivePort();
+//   mainSend.send(recv.sendPort);
+
+//   final sb = StringBuffer();
+
+//   recv.listen((msg) {
+//     final _Payload p = msg[0] as _Payload;
+//     final SendPort ret = msg[1] as SendPort;
+
+//     final chars = p.darkMode ? ' .:-=+*#%@' : '@%#*+=-:. ';
+
+//     final stepX = p.srcW / p.outW;
+//     final stepY = p.srcH / p.outH;
+//     sb.clear();
+
+//     final yStride = p.bytesPerRow;
+
+//     for (int y = 0; y < p.outH; y++) {
+//       for (int x = 0; x < p.outW; x++) {
+//         final srcX = (x * stepX).floor();
+//         final srcY = (y * stepY).floor();
+
+//         if (srcX >= 0 && srcX < p.srcW && srcY >= 0 && srcY < p.srcH) {
+//           final index = srcY * yStride + srcX;
+
+//           if (index >= 0 && index < p.y.length) {
+//             final lum = p.y[index];
+//             sb.write(chars[(lum * (chars.length - 1)) ~/ 255]);
+//           }
+//         } else {
+//           sb.write(' ');
+//         }
+//       }
+//       sb.writeln();
+//     }
+//     ret.send(sb.toString());
+//   });
+// }
+
 void _workerEntry(SendPort mainSend) {
   final recv = ReceivePort();
   mainSend.send(recv.sendPort);
@@ -173,32 +226,41 @@ void _workerEntry(SendPort mainSend) {
     final SendPort ret = msg[1] as SendPort;
 
     final chars = p.darkMode ? ' .:-=+*#%@' : '@%#*+=-:. ';
-
-    final stepX = p.srcW / p.outW;
-    final stepY = p.srcH / p.outH;
-    sb.clear();
-
     final yStride = p.bytesPerRow;
+
+    // Pre-compute steps for both cases
+    final stepX = p.rotate90 ? p.srcH / p.outW : p.srcW / p.outW;
+    final stepY = p.rotate90 ? p.srcW / p.outH : p.srcH / p.outH;
+
+    sb.clear();
 
     for (int y = 0; y < p.outH; y++) {
       for (int x = 0; x < p.outW; x++) {
-        final srcX = (x * stepX).floor();
-        final srcY = (y * stepY).floor();
+        int srcX, srcY;
 
+        if (p.rotate90) {
+          // 90° clockwise: swap axes + vertical flip
+          srcY = p.srcH - (x * stepX).floor() - 1;
+          srcX = (y * stepY).floor();
+        } else {
+          srcX = (x * stepX).floor();
+          srcY = (y * stepY).floor();
+        }
+
+        // Bounds-check
         if (srcX >= 0 && srcX < p.srcW && srcY >= 0 && srcY < p.srcH) {
           final index = srcY * yStride + srcX;
-          
-          if (index >= 0 && index < p.y.length) {
+          if (index < p.y.length) {
             final lum = p.y[index];
-            final charIndex = (lum * (chars.length - 1)) ~/ 255;
-            sb.write(chars[charIndex]);
+            sb.write(chars[(lum * (chars.length - 1)) ~/ 255]);
+            continue;
           }
-        } else {
-          sb.write(' ');
         }
+        sb.write(' ');
       }
       sb.writeln();
     }
+
     ret.send(sb.toString());
   });
 }
