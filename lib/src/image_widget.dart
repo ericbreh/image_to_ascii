@@ -3,29 +3,40 @@ import 'package:google_fonts/google_fonts.dart';
 
 class AsciiImageWidget extends StatelessWidget {
   final String ascii;
+  final double? height;
+  final double? width;
 
-  const AsciiImageWidget({super.key, required this.ascii});
+  const AsciiImageWidget({
+    super.key,
+    this.width,
+    this.height,
+    required this.ascii,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return FittedBox(
-      fit: BoxFit.contain,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(100),
-        child: Text(
-          ascii,
-          style: GoogleFonts.martianMono(
-            textStyle: TextStyle(
-              fontWeight: FontWeight.w700,
-              color:
-                  Theme.of(context).brightness == Brightness.light
-                      ? Colors.black
-                      : Colors.white,
-              fontSize: 25,
-              height: 1.0,
+    return SizedBox(
+      height: height,
+      width: width,
+      child: FittedBox(
+        fit: BoxFit.contain,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(100),
+          child: Text(
+            ascii,
+            style: GoogleFonts.martianMono(
+              textStyle: TextStyle(
+                fontWeight: FontWeight.w700,
+                color:
+                    Theme.of(context).brightness == Brightness.light
+                        ? Colors.black
+                        : Colors.white,
+                fontSize: 25,
+                height: 1.0,
+              ),
             ),
+            softWrap: false,
           ),
-          softWrap: false,
         ),
       ),
     );

@@ -8,6 +8,9 @@ Future<String> convertImageToAscii(
   int? height,
   bool darkMode = false,
   bool color = false,
+  double charAspectRatio = 0.75,
+  double? cropAspectRatio,
+  bool allowCropRotation = false
 }) async {
   final swAll = Stopwatch()..start();
 
@@ -19,6 +22,7 @@ Future<String> convertImageToAscii(
   // Determine dimensions
   int targetWidth;
   int targetHeight;
+
   if (width != null && height != null) {
     targetWidth = width;
     targetHeight = height;
@@ -27,18 +31,15 @@ Future<String> convertImageToAscii(
     final ui.Codec infoCodec = await ui.instantiateImageCodec(bytes);
     final ui.FrameInfo infoFrame = await infoCodec.getNextFrame();
     final ui.Image infoImg = infoFrame.image;
-    final double aspectRatio = infoImg.width / infoImg.height;
+    final double aspectRatio = (infoImg.width / infoImg.height) / charAspectRatio;
     swOrigDims.stop();
     debugPrint('get dims: ${swOrigDims.elapsedMilliseconds} ms');
 
-    if (width != null) {
-      targetWidth = width;
-      targetHeight = (targetWidth / aspectRatio).round();
-    } else if (height != null) {
+    if (height != null) {
       targetHeight = height;
       targetWidth = (targetHeight * aspectRatio).round();
     } else {
-      targetWidth = 150;
+      targetWidth = width ?? 150;
       targetHeight = (targetWidth / aspectRatio).round();
     }
   }
