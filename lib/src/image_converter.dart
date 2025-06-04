@@ -9,8 +9,6 @@ Future<String> convertImageToAscii(
   bool darkMode = false,
   bool color = false,
   double charAspectRatio = 0.75,
-  double? cropAspectRatio,
-  bool allowCropRotation = false
 }) async {
   final swAll = Stopwatch()..start();
 
@@ -20,27 +18,29 @@ Future<String> convertImageToAscii(
   swRead.stop();
 
   // Determine dimensions
-  int targetWidth;
-  int targetHeight;
+  int? targetWidth;
+  int? targetHeight;
 
   if (width != null && height != null) {
     targetWidth = width;
     targetHeight = height;
   } else {
-    final swOrigDims = Stopwatch()..start();
-    final ui.Codec infoCodec = await ui.instantiateImageCodec(bytes);
-    final ui.FrameInfo infoFrame = await infoCodec.getNextFrame();
-    final ui.Image infoImg = infoFrame.image;
-    final double aspectRatio = (infoImg.width / infoImg.height) / charAspectRatio;
-    swOrigDims.stop();
-    debugPrint('get dims: ${swOrigDims.elapsedMilliseconds} ms');
-
     if (height != null) {
       targetHeight = height;
-      targetWidth = (targetHeight * aspectRatio).round();
     } else {
       targetWidth = width ?? 150;
-      targetHeight = (targetWidth / aspectRatio).round();
+    }
+    final ui.Codec preCodec = await ui.instantiateImageCodec(
+      bytes,
+      targetWidth: targetWidth,
+      targetHeight: targetHeight,
+    );
+    final ui.FrameInfo frame = await preCodec.getNextFrame();
+    final ui.Image preImg = frame.image;
+    if (targetHeight == null) {
+      targetHeight = (preImg.height * charAspectRatio).round();
+    } else {
+      targetWidth = (preImg.width / charAspectRatio).round();
     }
   }
 
@@ -68,7 +68,7 @@ Future<String> convertImageToAscii(
   final sb = StringBuffer();
 
   for (int y = 0; y < targetHeight; y++) {
-    for (int x = 0; x < targetWidth; x++) {
+    for (int x = 0; x < targetWidth!; x++) {
       final i = (y * targetWidth + x) << 2;
       final r = rgba[i];
       final g = rgba[i + 1];
