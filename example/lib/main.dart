@@ -49,7 +49,7 @@ class _MyAppState extends State<MyApp> {
 
     final ascii = await convertImageToAscii(
       selectedImage!.path,
-      darkMode: isDarkMode,
+      dark: isDarkMode,
       color: false,
     );
 

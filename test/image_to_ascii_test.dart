@@ -25,7 +25,7 @@ void main() {
 
   test('Print ASCII art output', () async {
     // Get and print the ASCII art
-    final asciiArt = await convertImageToAscii(testFilePath, darkMode: true);
+    final asciiArt = await convertImageToAscii(testFilePath, dark: true);
     print(asciiArt);
 
     // Basic validation

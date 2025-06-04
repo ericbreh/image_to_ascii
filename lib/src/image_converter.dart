@@ -1,12 +1,13 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
+import 'package:image_to_ascii/image_to_ascii.dart';
 
 Future<String> convertImageToAscii(
   String path, {
   int? width,
   int? height,
-  bool darkMode = false,
+  bool dark = false,
   bool color = false,
   double charAspectRatio = 0.75,
 }) async {
@@ -58,7 +59,7 @@ Future<String> convertImageToAscii(
 
   // ASCII conversion
   final swAscii = Stopwatch()..start();
-  final chars = (darkMode) ? ' .:-=+*#%@' : '@%#*+=-:. ';
+  final chars = (dark) ? ' .:-=+*#%@' : '@%#*+=-:. ';
   final sb = StringBuffer();
 
   for (int y = 0; y < targetHeight!; y++) {
@@ -95,9 +96,9 @@ Future<String> convertImageToAscii(
   return sb.toString();
 }
 
-Future<String> convertImageToAsciiFromImage(
+Future<AsciiImage> convertImageToAsciiFromImage(
   ui.Image image, {
-  bool darkMode = false,
+  bool dark = false,
   bool color = false,
 }) async {
   final swAll = Stopwatch()..start();
@@ -111,7 +112,7 @@ Future<String> convertImageToAsciiFromImage(
 
   // ASCII conversion
   final swAscii = Stopwatch()..start();
-  final chars = (darkMode) ? ' .:-=+*#%@' : '@%#*+=-:. ';
+  final chars = (dark) ? ' .:-=+*#%@' : '@%#*+=-:. ';
   final sb = StringBuffer();
 
   for (int y = 0; y < image.height; y++) {
@@ -138,10 +139,16 @@ Future<String> convertImageToAsciiFromImage(
   swAscii.stop();
 
   swAll.stop();
-
   debugPrint('copy   : ${swCopy.elapsedMilliseconds} ms');
   debugPrint('ASCII  : ${swAscii.elapsedMilliseconds} ms');
   debugPrint('TOTAL  : ${swAll.elapsedMilliseconds} ms');
 
-  return sb.toString();
+  return AsciiImage(
+    version: 1,
+    data: sb.toString(),
+    color: color,
+    dark: dark,
+    width: image.width,
+    height: image.height,
+  );
 }

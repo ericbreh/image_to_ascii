@@ -30,6 +30,16 @@ class AsciiCameraController {
   // Public stream
   Stream<String> get stream => _asciiStreamCtrl.stream;
 
+  Future<XFile?> takePicture() async {
+    if (!_cam.value.isInitialized) {
+      return null;
+    }
+    try {
+      return await _cam.takePicture();
+    } catch (_) {}
+    return null;
+  }
+
   Future<void> initialize() async {
     final cams = await availableCameras();
     _cam = CameraController(
