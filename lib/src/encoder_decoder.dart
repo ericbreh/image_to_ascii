@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:flutter/painting.dart';
+
 class CharSet {
   static final _darkSet = ' .:-=+*#%@';
   static final _lightSet = '@%#*+=-:. ';
@@ -132,5 +134,68 @@ class Decoder {
       }
     }
     return buf.toString();
+  }
+
+  Color colorFromByte(int byte) {
+    // Extract color components from packed byte
+    int rVal = (byte >> 5) & 0x7;
+    int gVal = (byte >> 2) & 0x7;
+    int bVal = byte & 0x3;
+
+    // Scale back to 0-255 range
+    int r = (rVal * 255 / 7).round();
+    int g = (gVal * 255 / 7).round();
+    int b = (bVal * 255 / 3).round();
+
+    return Color.fromARGB(255, r, g, b);
+  }
+
+  List<InlineSpan> convertToTextSpans(Uint8List data) {
+    int currentWidth = 0;
+    int colorBit = 0;
+    final spans = <InlineSpan>[];
+    Color? color1, color2;
+
+    for (final int in data) {
+      if (color) {
+        if (colorBit == 0) {
+          colorBit++;
+          color1 = colorFromByte(int);
+          continue;
+        } else if (colorBit == 1) {
+          colorBit++;
+          color2 = colorFromByte(int);
+          continue;
+        } else {
+          colorBit = 0;
+        }
+      }
+
+      spans.add(
+        TextSpan(
+          text: CharSet.decode(int >> 4),
+          style: TextStyle(color: color1),
+        ),
+      );
+      currentWidth++;
+      if (currentWidth == width) {
+        spans.add(const TextSpan(text: '\n'));
+        currentWidth = 0;
+      }
+      if (int & 15 != 0) {
+        spans.add(
+          TextSpan(
+            text: CharSet.decode(int & 15),
+            style: TextStyle(color: color2),
+          ),
+        );
+        currentWidth++;
+        if (currentWidth == width) {
+          spans.add(const TextSpan(text: '\n'));
+          currentWidth = 0;
+        }
+      }
+    }
+    return spans;
   }
 }

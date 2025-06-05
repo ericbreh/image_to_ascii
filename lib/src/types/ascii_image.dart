@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/painting.dart';
 import 'package:image_to_ascii/src/encoder_decoder.dart';
 
 class AsciiImage {
@@ -89,6 +90,10 @@ class AsciiImage {
       return _decoder.convertToString(data);
     }
     return super.toString();
+  }
+
+  List<InlineSpan> toTextSpans() {
+    return _decoder.convertToTextSpans(data);
   }
 
   @override

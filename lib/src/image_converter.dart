@@ -94,8 +94,11 @@ Future<AsciiImage> convertImageToAscii(
       final gray = (0.299 * r + 0.587 * g + 0.114 * b).toInt();
       int? pixelColor;
       if (color) {
-        //TODO
-        // pixelColor = r >> ;
+        int rVal = (r * 8 / 256).floor();
+        int gVal = (g * 8 / 256).floor();
+        int bVal = (b * 4 / 256).floor();
+
+        pixelColor = (rVal << 5) | (gVal << 2) | bVal;
       }
       en.addPixel(gray, colorVal: pixelColor);
     }
