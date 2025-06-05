@@ -81,8 +81,7 @@ class AsciiImage {
     return AsciiImage.fromV1Json(json);
   }
 
-  @override
-  String toString() {
+  String toDisplayString() {
     if (version == 0) {
       return utf8.decode(data);
     }
@@ -90,5 +89,10 @@ class AsciiImage {
       return _decoder.convertToString(data);
     }
     return super.toString();
+  }
+
+  @override
+  String toString() {
+    return 'version: $version width: $width, height: $height, color: $color, dark: $dark\n${toDisplayString()}';
   }
 }

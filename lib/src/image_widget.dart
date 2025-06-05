@@ -24,7 +24,7 @@ class AsciiImageWidget extends StatelessWidget {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(100),
           child: Text(
-            ascii.toString(),
+            ascii.toDisplayString(),
             style: GoogleFonts.martianMono(
               textStyle: TextStyle(
                 fontWeight: FontWeight.w700,

@@ -117,11 +117,18 @@ class Decoder {
       }
 
       buf.write(CharSet.decode(int >> 4));
-      if (int & 15 != 0) buf.write(CharSet.decode(int & 15));
-      currentWidth += 2;
+      currentWidth++;
       if (currentWidth == width) {
         buf.writeln();
         currentWidth = 0;
+      }
+      if (int & 15 != 0) {
+        buf.write(CharSet.decode(int & 15));
+        currentWidth++;
+        if (currentWidth == width) {
+          buf.writeln();
+          currentWidth = 0;
+        }
       }
     }
     return buf.toString();
