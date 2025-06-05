@@ -16,7 +16,7 @@ class _MyAppState extends State<MyApp> {
   late final AsciiCameraController _ctrl;
   String frame = '';
   XFile? selectedImage;
-  String? asciiImage;
+  AsciiImage? asciiImage;
   String? loadingTime;
   bool isLoading = true;
   bool isDarkMode = true;
@@ -47,7 +47,7 @@ class _MyAppState extends State<MyApp> {
 
     final sw = Stopwatch()..start();
 
-    final ascii = await convertImageToAscii(
+    final ascii = await convertImagePathToAscii(
       selectedImage!.path,
       dark: isDarkMode,
       color: false,
@@ -119,7 +119,9 @@ class _MyAppState extends State<MyApp> {
                       : SizedBox(
                         width: 500,
                         height: 600,
-                        child: AsciiImageWidget(ascii: frame),
+                        child: AsciiImageWidget(
+                          ascii: AsciiImage.fromV0String(frame),
+                        ),
                       ),
             ),
           ),

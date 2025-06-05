@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_to_ascii/src/types/ascii_image.dart';
 
 class AsciiImageWidget extends StatelessWidget {
-  final String ascii;
+  final AsciiImage ascii;
   final double? height;
   final double? width;
 
@@ -23,7 +24,7 @@ class AsciiImageWidget extends StatelessWidget {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(100),
           child: Text(
-            ascii,
+            ascii.toString(),
             style: GoogleFonts.martianMono(
               textStyle: TextStyle(
                 fontWeight: FontWeight.w700,

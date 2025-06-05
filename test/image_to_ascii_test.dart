@@ -18,18 +18,18 @@ void main() {
 
   test('Basic Dart conversion does not throw', () async {
     await expectLater(
-      convertImageToAscii(testFilePath, width: 150, height: 75),
+      convertImagePathToAscii(testFilePath, width: 150, height: 75),
       completes,
     );
   });
 
   test('Print ASCII art output', () async {
     // Get and print the ASCII art
-    final asciiArt = await convertImageToAscii(testFilePath, dark: true);
+    final asciiArt = await convertImagePathToAscii(testFilePath, dark: true);
     print(asciiArt);
 
     // Basic validation
-    expect(asciiArt, isNotEmpty);
+    expect(asciiArt.data, isNotEmpty);
   });
 
   group('Aspect ratio preservation tests', () {
@@ -52,14 +52,14 @@ void main() {
         const int width = 80;
         const int height = 40;
 
-        final asciiArt = await convertImageToAscii(
+        final asciiArt = await convertImagePathToAscii(
           testFilePath,
           width: width,
           height: height,
         );
 
         // Count width (characters in first line) and height (number of lines)
-        final lines = asciiArt.trim().split('\n');
+        final lines = asciiArt.toString().trim().split('\n');
         final actualHeight = lines.length;
         final actualWidth = lines.first.length;
 
@@ -91,9 +91,12 @@ void main() {
     test('Only width provided (height calculated from aspect ratio)', () async {
       const int width = 100;
 
-      final asciiArt = await convertImageToAscii(testFilePath, width: width);
+      final asciiArt = await convertImagePathToAscii(
+        testFilePath,
+        width: width,
+      );
 
-      final lines = asciiArt.trim().split('\n');
+      final lines = asciiArt.toString().trim().split('\n');
       final actualHeight = lines.length;
       final actualWidth = lines.first.length;
 
@@ -124,9 +127,12 @@ void main() {
     test('Only height provided (width calculated from aspect ratio)', () async {
       const int height = 50;
 
-      final asciiArt = await convertImageToAscii(testFilePath, height: height);
+      final asciiArt = await convertImagePathToAscii(
+        testFilePath,
+        height: height,
+      );
 
-      final lines = asciiArt.trim().split('\n');
+      final lines = asciiArt.toString().trim().split('\n');
       final actualHeight = lines.length;
       final actualWidth = lines.first.length;
 
@@ -158,9 +164,9 @@ void main() {
     test(
       'Neither width nor height provided (default width with aspect ratio)',
       () async {
-        final asciiArt = await convertImageToAscii(testFilePath);
+        final asciiArt = await convertImagePathToAscii(testFilePath);
 
-        final lines = asciiArt.trim().split('\n');
+        final lines = asciiArt.toString().trim().split('\n');
         final actualHeight = lines.length;
         final actualWidth = lines.first.length;
 

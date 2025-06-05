@@ -2,8 +2,9 @@ import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:image_to_ascii/image_to_ascii.dart';
+import 'package:image_to_ascii/src/encoder_decoder.dart';
 
-Future<String> convertImageToAscii(
+Future<AsciiImage> convertImagePathToAscii(
   String path, {
   int? width,
   int? height,
@@ -50,53 +51,18 @@ Future<String> convertImageToAscii(
   final ui.Image img = frame.image;
   swDecode.stop();
 
-  // Get RGBA
-  final swCopy = Stopwatch()..start();
-  final ByteData bd =
-      (await img.toByteData(format: ui.ImageByteFormat.rawRgba))!;
-  final Uint8List rgba = bd.buffer.asUint8List();
-  swCopy.stop();
-
-  // ASCII conversion
-  final swAscii = Stopwatch()..start();
-  final chars = (dark) ? ' .:-=+*#%@' : '@%#*+=-:. ';
-  final sb = StringBuffer();
-
-  for (int y = 0; y < targetHeight!; y++) {
-    for (int x = 0; x < targetWidth!; x++) {
-      final i = (y * targetWidth + x) << 2;
-      final r = rgba[i];
-      final g = rgba[i + 1];
-      final b = rgba[i + 2];
-      final gray = (0.299 * r + 0.587 * g + 0.114 * b).toInt();
-      final ch = chars[(gray * (chars.length - 1)) ~/ 255];
-
-      if (color) {
-        final hex =
-            r.toRadixString(16).padLeft(2, '0') +
-            g.toRadixString(16).padLeft(2, '0') +
-            b.toRadixString(16).padLeft(2, '0');
-        sb.write('[#${hex.toUpperCase()}]$ch');
-      } else {
-        sb.write(ch);
-      }
-    }
-    sb.writeln();
-  }
-  swAscii.stop();
+  final res = await convertImageToAscii(img, dark: dark, color: color);
 
   swAll.stop();
 
   debugPrint('read   : ${swRead.elapsedMilliseconds} ms');
   debugPrint('decode : ${swDecode.elapsedMilliseconds} ms');
-  debugPrint('copy   : ${swCopy.elapsedMilliseconds} ms');
-  debugPrint('ASCII  : ${swAscii.elapsedMilliseconds} ms');
   debugPrint('TOTAL  : ${swAll.elapsedMilliseconds} ms');
 
-  return sb.toString();
+  return res;
 }
 
-Future<AsciiImage> convertImageToAsciiFromImage(
+Future<AsciiImage> convertImageToAscii(
   ui.Image image, {
   bool dark = false,
   bool color = false,
@@ -112,8 +78,12 @@ Future<AsciiImage> convertImageToAsciiFromImage(
 
   // ASCII conversion
   final swAscii = Stopwatch()..start();
-  final chars = (dark) ? ' .:-=+*#%@' : '@%#*+=-:. ';
-  final sb = StringBuffer();
+  final en = Encoder(
+    dark: dark,
+    color: color,
+    width: image.width,
+    height: image.height,
+  );
 
   for (int y = 0; y < image.height; y++) {
     for (int x = 0; x < image.width; x++) {
@@ -122,19 +92,13 @@ Future<AsciiImage> convertImageToAsciiFromImage(
       final g = rgba[i + 1];
       final b = rgba[i + 2];
       final gray = (0.299 * r + 0.587 * g + 0.114 * b).toInt();
-      final ch = chars[(gray * (chars.length - 1)) ~/ 255];
-
+      int? pixelColor;
       if (color) {
-        final hex =
-            r.toRadixString(16).padLeft(2, '0') +
-            g.toRadixString(16).padLeft(2, '0') +
-            b.toRadixString(16).padLeft(2, '0');
-        sb.write('[#${hex.toUpperCase()}]$ch');
-      } else {
-        sb.write(ch);
+        //TODO
+        // pixelColor = r >> ;
       }
+      en.addPixel(gray, colorVal: pixelColor);
     }
-    sb.writeln();
   }
   swAscii.stop();
 
@@ -145,7 +109,7 @@ Future<AsciiImage> convertImageToAsciiFromImage(
 
   return AsciiImage(
     version: 1,
-    data: sb.toString(),
+    data: en.encode(),
     color: color,
     dark: dark,
     width: image.width,
