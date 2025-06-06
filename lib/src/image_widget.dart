@@ -16,17 +16,18 @@ class AsciiImageWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textColor = ascii.dark ? Colors.white : Colors.black;
+    final backgroundColor = ascii.dark ? Colors.black : Colors.white;
+
     final baseTextStyle = GoogleFonts.martianMono(
       textStyle: TextStyle(
         fontWeight: FontWeight.w700,
-        color:
-            Theme.of(context).brightness == Brightness.light
-                ? Colors.black
-                : Colors.white,
+        color: textColor,
         fontSize: 25,
         height: 1.0,
       ),
     );
+
     return SizedBox(
       height: height,
       width: width,
@@ -34,20 +35,23 @@ class AsciiImageWidget extends StatelessWidget {
         fit: BoxFit.contain,
         child: ClipRRect(
           borderRadius: BorderRadius.circular(100),
-          child:
-              (ascii.color)
-                  ? Text.rich(
-                    TextSpan(
+          child: ColoredBox(
+            color: backgroundColor,
+            child:
+                (ascii.color)
+                    ? Text.rich(
+                      TextSpan(
+                        style: baseTextStyle,
+                        children: ascii.toTextSpans(),
+                      ),
+                      softWrap: false,
+                    )
+                    : Text(
+                      ascii.toDisplayString(),
                       style: baseTextStyle,
-                      children: ascii.toTextSpans(),
+                      softWrap: false,
                     ),
-                    softWrap: false,
-                  )
-                  : Text(
-                    ascii.toDisplayString(),
-                    style: baseTextStyle,
-                    softWrap: false,
-                  ),
+          ),
         ),
       ),
     );
