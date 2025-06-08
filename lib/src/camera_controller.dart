@@ -20,6 +20,9 @@ class AsciiCameraController {
   late CameraController _cam;
   late Isolate _worker;
   late SendPort _workerSend;
+  late final List<CameraDescription> _cameras;
+  int _currentCameraIndex = 0;
+  bool _isStreamActive = false;
   final _asciiStreamCtrl = StreamController<String>.broadcast();
   bool _workerBusy = false;
 
@@ -29,6 +32,9 @@ class AsciiCameraController {
 
   // Public stream
   Stream<String> get stream => _asciiStreamCtrl.stream;
+  List<CameraDescription> get cameras => _cameras;
+
+  int get currentCameraIndex => _currentCameraIndex;
 
   Future<XFile?> takePicture() async {
     if (!_cam.value.isInitialized) {
@@ -41,9 +47,10 @@ class AsciiCameraController {
   }
 
   Future<void> initialize() async {
-    final cams = await availableCameras();
+    _cameras = await availableCameras();
+    _currentCameraIndex = 0;
     _cam = CameraController(
-      cams.first,
+      _cameras.first,
       preset,
       enableAudio: false,
       imageFormatGroup: ImageFormatGroup.yuv420,
@@ -64,6 +71,55 @@ class AsciiCameraController {
 
     // start stream
     await _cam.startImageStream(_onFrame);
+    _isStreamActive = true;
+  }
+
+  Future<void> switchToCamera(int cameraIndex) async {
+    if (cameraIndex < 0 || cameraIndex >= _cameras.length) {
+      print('Invalid camera index: $cameraIndex');
+      return;
+    }
+
+    if (cameraIndex == _currentCameraIndex) {
+      print('Already using camera at index $cameraIndex');
+      return;
+    }
+
+    try {
+      // Stop the current image stream
+      if (_isStreamActive) {
+        await _cam.stopImageStream();
+        _isStreamActive = false;
+      }
+
+      // Dispose current controller
+      await _cam.dispose();
+
+      // Switch to specified camera
+      _currentCameraIndex = cameraIndex;
+
+      // Create new controller with the specified camera
+      _cam = CameraController(
+        _cameras[_currentCameraIndex],
+        preset,
+        enableAudio: false,
+        imageFormatGroup: ImageFormatGroup.yuv420,
+      );
+
+      // Initialize the new camera
+      await _cam.initialize();
+
+      // Recalculate dimensions for the new camera
+      _calculateDimensions();
+
+      // Restart the image stream
+      await _cam.startImageStream(_onFrame);
+      _isStreamActive = true;
+
+      print('Switched to camera: ${_cameras[_currentCameraIndex].name}');
+    } catch (e) {
+      print('Error switching to camera $cameraIndex: $e');
+    }
   }
 
   void _calculateDimensions() {
@@ -93,7 +149,10 @@ class AsciiCameraController {
   }
 
   Future<void> dispose() async {
-    await _cam.stopImageStream();
+    if (_isStreamActive) {
+      await _cam.stopImageStream();
+      _isStreamActive = false;
+    }
     await _cam.dispose();
     _worker.kill(priority: Isolate.immediate);
     await _asciiStreamCtrl.close();
