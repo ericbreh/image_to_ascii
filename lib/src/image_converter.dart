@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:image_to_ascii/image_to_ascii.dart';
+import 'package:image_to_ascii/src/constants.dart';
 import 'package:image_to_ascii/src/encoder_decoder.dart';
 
 Future<AsciiImage> convertImagePathToAscii(
@@ -10,7 +11,7 @@ Future<AsciiImage> convertImagePathToAscii(
   int? height,
   bool dark = false,
   bool color = false,
-  double charAspectRatio = 0.75,
+  double charAspectRatio = charAspectRatio,
 }) async {
   final swAll = Stopwatch()..start();
 

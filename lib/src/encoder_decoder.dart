@@ -1,27 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/painting.dart';
-
-class CharSet {
-  static final _darkSet = ' .:-=+*#%@';
-  static final _lightSet = '@%#*+=-:. ';
-
-  static int get length => _darkSet.length;
-  static String get lightMode => _lightSet;
-  static String get darkMode => _darkSet;
-
-  // takes an 8 bit grayscale value and converts to a 4 bit value suitible to bit pack.
-  // output integer is the index of the character in the dark set + 1
-  static int encode(int val, bool dark) {
-    // fix dark/light
-    final int value = (dark ? val : 255 - val).clamp(0, 255);
-    return ((value * (length - 1)) ~/ 255) + 1;
-  }
-
-  static String decode(int val) {
-    return _darkSet[val - 1];
-  }
-}
+import 'package:image_to_ascii/src/char_set.dart';
 
 int _getListLenght(int wh, bool color) {
   if (!color) {
