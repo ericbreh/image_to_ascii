@@ -51,16 +51,10 @@ class _AsciiWidgetState extends State<_AsciiWidget> {
   late TextPainter tp;
 
   void _initTextPainter() {
-    final span =
-        widget.ascii.color
-            ? TextSpan(
-              style: widget.style,
-              children: widget.ascii.toTextSpans(),
-            )
-            : TextSpan(
-              style: widget.style,
-              text: widget.ascii.toDisplayString(),
-            );
+    final span = TextSpan(
+      style: widget.style,
+      children: widget.ascii.toTextSpans(),
+    );
     tp = TextPainter(
       text: span,
       textDirection: TextDirection.ltr,

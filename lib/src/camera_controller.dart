@@ -21,11 +21,12 @@ class AsciiCameraController {
   late Isolate _worker;
   late SendPort _workerSend;
   late final List<CameraDescription> _cameras;
+  final List<int> _frontCameras = [];
+  final List<int> _backCameras = [];
   int _currentCameraIndex = 0;
   bool _isStreamActive = false;
   final _asciiStreamCtrl = StreamController<String>.broadcast();
   bool _workerBusy = false;
-
   // Calculated dimensions
   late int _targetWidth;
   late int _targetHeight;
@@ -35,6 +36,9 @@ class AsciiCameraController {
   List<CameraDescription> get cameras => _cameras;
 
   int get currentCameraIndex => _currentCameraIndex;
+
+  List<int> get backCameras => _backCameras;
+  List<int> get frontCameras => _frontCameras;
 
   Future<XFile?> takePicture() async {
     if (!_cam.value.isInitialized) {
@@ -46,11 +50,22 @@ class AsciiCameraController {
     return null;
   }
 
+  Future<void> _populateCameraLists() async {
+    for (int i = 0; i < _cameras.length; i++) {
+      if (_cameras[i].lensDirection == CameraLensDirection.front) {
+        _frontCameras.add(i);
+      } else {
+        _backCameras.add(i);
+      }
+    }
+  }
+
   Future<void> initialize() async {
     _cameras = await availableCameras();
-    _currentCameraIndex = 0;
+    _populateCameraLists();
+    _currentCameraIndex = _backCameras.first;
     _cam = CameraController(
-      _cameras.first,
+      _cameras[_currentCameraIndex],
       preset,
       enableAudio: false,
       imageFormatGroup: ImageFormatGroup.yuv420,
@@ -74,14 +89,20 @@ class AsciiCameraController {
     _isStreamActive = true;
   }
 
+  Future<void> switchToBack() async {
+    await switchToCamera(_backCameras.first);
+  }
+
+  Future<void> switchToFront() async {
+    await switchToCamera(_frontCameras.first);
+  }
+
   Future<void> switchToCamera(int cameraIndex) async {
     if (cameraIndex < 0 || cameraIndex >= _cameras.length) {
-      print('Invalid camera index: $cameraIndex');
       return;
     }
 
     if (cameraIndex == _currentCameraIndex) {
-      print('Already using camera at index $cameraIndex');
       return;
     }
 
@@ -115,10 +136,8 @@ class AsciiCameraController {
       // Restart the image stream
       await _cam.startImageStream(_onFrame);
       _isStreamActive = true;
-
-      print('Switched to camera: ${_cameras[_currentCameraIndex].name}');
     } catch (e) {
-      print('Error switching to camera $cameraIndex: $e');
+      // don't throw
     }
   }
 
@@ -171,6 +190,7 @@ class AsciiCameraController {
       _targetHeight,
       darkMode,
       img.planes[0].bytesPerRow,
+      cameras[_currentCameraIndex].lensDirection == CameraLensDirection.front,
     );
 
     final reply = ReceivePort();
@@ -188,6 +208,7 @@ class _Payload {
   final int srcW, srcH, outW, outH;
   final bool darkMode;
   final int bytesPerRow;
+  final bool isFrontFacing;
 
   const _Payload(
     this.y,
@@ -197,10 +218,35 @@ class _Payload {
     this.outH,
     this.darkMode,
     this.bytesPerRow,
+    this.isFrontFacing,
   );
 }
 
 // android
+
+void _androidInnerLoop(
+  _Payload p,
+  double stepX,
+  double stepY,
+  String chars,
+  StringBuffer sb,
+  int ay,
+) {
+  for (int ax = 0; ax < p.outW; ax++) {
+    final y = p.srcH - (ax * stepX).floor() - 1;
+    final x = (ay * stepY).floor();
+
+    // Ensure we don't access outside the array bounds
+    if (y >= 0 && y < p.srcH && x >= 0 && x < p.srcW) {
+      final lum = p.y[y * p.srcW + x];
+      sb.write(chars[(lum * (chars.length - 1)) ~/ 255]);
+    } else {
+      sb.write(' ');
+    }
+  }
+  sb.writeln();
+}
+
 void _workerAndroid(SendPort mainSend) {
   final recv = ReceivePort();
   mainSend.send(recv.sendPort);
@@ -217,21 +263,16 @@ void _workerAndroid(SendPort mainSend) {
     final stepY = p.srcW / p.outH;
     sb.clear();
 
-    for (int ay = 0; ay < p.outH; ay++) {
-      for (int ax = 0; ax < p.outW; ax++) {
-        final y = p.srcH - (ax * stepX).floor() - 1;
-        final x = (ay * stepY).floor();
-
-        // Ensure we don't access outside the array bounds
-        if (y >= 0 && y < p.srcH && x >= 0 && x < p.srcW) {
-          final lum = p.y[y * p.srcW + x];
-          sb.write(chars[(lum * (chars.length - 1)) ~/ 255]);
-        } else {
-          sb.write(' ');
-        }
+    if (p.isFrontFacing) {
+      for (int ay = p.outH - 1; ay >= 0; ay--) {
+        _androidInnerLoop(p, stepX, stepY, chars, sb, ay);
       }
-      sb.writeln();
+    } else {
+      for (int ay = 0; ay < p.outH; ay++) {
+        _androidInnerLoop(p, stepX, stepY, chars, sb, ay);
+      }
     }
+
     ret.send(sb.toString());
   });
 }

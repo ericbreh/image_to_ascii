@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/painting.dart';
+import 'package:image_to_ascii/image_to_ascii.dart';
 import 'package:image_to_ascii/src/char_set.dart';
 
 int _getListLenght(int wh, bool color) {
@@ -73,23 +74,15 @@ class Encoder {
 }
 
 class Decoder {
-  final bool dark;
-  final bool color;
-  final int width;
-  final int height;
-  Decoder({
-    required this.dark,
-    required this.color,
-    required this.width,
-    required this.height,
-  });
+  final AsciiImage ascii;
+  Decoder({required this.ascii});
 
   String convertToString(Uint8List data) {
     int currentWidth = 0;
     int colorBit = 0;
     final buf = StringBuffer();
     for (final int in data) {
-      if (color) {
+      if (ascii.color) {
         if (colorBit == 0 || colorBit == 1) {
           colorBit++;
           continue;
@@ -100,14 +93,14 @@ class Decoder {
 
       buf.write(CharSet.decode(int >> 4));
       currentWidth++;
-      if (currentWidth == width) {
+      if (currentWidth == ascii.width) {
         buf.writeln();
         currentWidth = 0;
       }
       if (int & 15 != 0) {
         buf.write(CharSet.decode(int & 15));
         currentWidth++;
-        if (currentWidth == width) {
+        if (currentWidth == ascii.width) {
           buf.writeln();
           currentWidth = 0;
         }
@@ -131,51 +124,72 @@ class Decoder {
   }
 
   List<InlineSpan> convertToTextSpans(Uint8List data) {
+    if (!ascii.color || ascii.version == 0) {
+      return [TextSpan(text: ascii.toDisplayString())];
+    }
     int currentWidth = 0;
     int colorBit = 0;
     final spans = <InlineSpan>[];
     Color? color1, color2;
 
-    for (final int in data) {
-      if (color) {
-        if (colorBit == 0) {
-          colorBit++;
-          color1 = colorFromByte(int);
-          continue;
-        } else if (colorBit == 1) {
-          colorBit++;
-          color2 = colorFromByte(int);
-          continue;
-        } else {
-          colorBit = 0;
-        }
+    StringBuffer buffer = StringBuffer();
+    Color? lastColor;
+
+    void flushBuffer(Color? color) {
+      if (buffer.isNotEmpty) {
+        spans.add(
+          TextSpan(text: buffer.toString(), style: TextStyle(color: color)),
+        );
+        buffer.clear();
+      }
+    }
+
+    for (final byte in data) {
+      if (colorBit == 0) {
+        colorBit++;
+        color1 = colorFromByte(byte);
+        continue;
+      } else if (colorBit == 1) {
+        colorBit++;
+        color2 = colorFromByte(byte);
+        continue;
+      } else {
+        colorBit = 0;
       }
 
-      spans.add(
-        TextSpan(
-          text: CharSet.decode(int >> 4),
-          style: TextStyle(color: color1),
-        ),
-      );
+      // High nibble
+      final highChar = CharSet.decode(byte >> 4);
+      if (lastColor != color1) {
+        flushBuffer(lastColor);
+        lastColor = color1;
+      }
+      buffer.write(highChar);
       currentWidth++;
-      if (currentWidth == width) {
+      if (currentWidth == ascii.width) {
+        flushBuffer(lastColor);
         spans.add(const TextSpan(text: '\n'));
         currentWidth = 0;
       }
-      if (int & 15 != 0) {
-        spans.add(
-          TextSpan(
-            text: CharSet.decode(int & 15),
-            style: TextStyle(color: color2),
-          ),
-        );
+
+      // Low nibble (only if not 0)
+      final lowNibble = byte & 0x0F;
+      if (lowNibble != 0) {
+        final lowChar = CharSet.decode(lowNibble);
+        if (lastColor != color2) {
+          flushBuffer(lastColor);
+          lastColor = color2;
+        }
+        buffer.write(lowChar);
         currentWidth++;
-        if (currentWidth == width) {
+        if (currentWidth == ascii.width) {
+          flushBuffer(lastColor);
           spans.add(const TextSpan(text: '\n'));
           currentWidth = 0;
         }
       }
     }
+
+    flushBuffer(lastColor);
     return spans;
   }
 }

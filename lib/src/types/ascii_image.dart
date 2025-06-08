@@ -20,14 +20,7 @@ class AsciiImage {
     required this.color,
   }) {
     assert(!(version == 1 && (width == null || height == null)));
-    if (version == 1) {
-      _decoder = Decoder(
-        dark: dark,
-        color: color,
-        width: width!,
-        height: height!,
-      );
-    }
+    _decoder = Decoder(ascii: this);
   }
 
   late final Decoder _decoder;
@@ -56,7 +49,7 @@ class AsciiImage {
 
   Map<String, dynamic> toJson() {
     return {
-      'version': 1,
+      'version': version,
       'color': color,
       'dark': dark,
       'width': width,
