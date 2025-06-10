@@ -1,15 +1,16 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/painting.dart';
 import 'package:image_to_ascii/image_to_ascii.dart';
+import 'package:image_to_ascii/src/bit_buffer.dart';
 import 'package:image_to_ascii/src/char_set.dart';
 
 int _getListLenght(int wh, bool color) {
   if (!color) {
-    return (wh + 1) ~/ 2;
+    return wh * 5;
   } else {
-    // no need for comment
-    return (((((wh * 3) + 1) ~/ 2) + 2) ~/ 3) * 3;
+    return wh * 15;
   }
 }
 
@@ -24,18 +25,12 @@ class Encoder {
     required this.width,
     required this.height,
   }) {
-    _list = Uint8List(_getListLenght(width * height, color));
+    _bitBuffer = BitBuffer(_getListLenght(width * height, color));
   }
 
-  late final Uint8List _list;
-  int _listPos = 0;
-
-  _addToList(int item) {
-    _list[_listPos++] = item;
-  }
-
-  // = Uint8List(_getListLenght(width * height, color));
-  int? _pixel;
+  late final BitBuffer _bitBuffer;
+  int? _prevChar;
+  int? _prevColor;
 
   void addPixel(int grayVal, {int? colorVal}) {
     assert(
@@ -43,33 +38,59 @@ class Encoder {
       'Color must be provided when encoding a color image',
     );
 
-    if (color) {
-      _addToList(colorVal!);
+    //both of these will be null so no point in checking both
+    //this should only happed for the first pixel
+    if (_prevChar == null) {
+      if (color) {
+        _prevColor = colorVal!;
+        _bitBuffer.addBits(colorVal, 8);
+      }
+      _prevChar = CharSet.encode(grayVal, dark);
+      _bitBuffer.addBits(_prevChar!, 4);
+      //first pixel will always be 0
+      _bitBuffer.addBit(0);
+      // print(bitsAdded);
+      return;
     }
 
-    if (_pixel == null) {
-      _pixel = CharSet.encode(grayVal, dark);
-    } else {
-      _addToList(_pixel! << 4 | CharSet.encode(grayVal, dark));
-      _pixel = null;
+    // both colors will be null in black and white
+    final didColorChange = _prevColor != colorVal;
+    final didCharChange = _prevChar != CharSet.encode(grayVal, dark);
+    if (didColorChange || didCharChange) {
+      // notifiy of change
+      _bitBuffer.addBit(1);
+
+      //if not color just add the new char
+      if (!color) {
+        _prevChar = CharSet.encode(grayVal, dark);
+        _bitBuffer.addBits(_prevChar!, 4);
+        // print(bitsAdded);
+        return;
+      }
+
+      // add two bit to tell what changed
+      _bitBuffer.addBit(didColorChange ? 1 : 0);
+      _bitBuffer.addBit(didCharChange ? 1 : 0);
+
+      if (didColorChange) {
+        _prevColor = colorVal!;
+        _bitBuffer.addBits(colorVal, 8);
+      }
+      if (didCharChange) {
+        _prevChar = CharSet.encode(grayVal, dark);
+        _bitBuffer.addBits(_prevChar!, 4);
+      }
+
+      // print(bitsAdded);
+      return;
     }
+    //if nothing changed just add a 0
+    _bitBuffer.addBit(0);
   }
 
   Uint8List encode() {
-    if (_pixel != null) {
-      if (color) {
-        //null color
-        _addToList(0);
-      }
-      _addToList(_pixel! << 4);
-    }
-    return _list;
-  }
-
-  void reset() {
-    _pixel = null;
-    _list.clear();
-    _listPos = 0;
+    final list = _bitBuffer.toUint8List();
+    return list;
   }
 }
 
@@ -77,34 +98,41 @@ class Decoder {
   final AsciiImage ascii;
   Decoder({required this.ascii});
 
-  String convertToString(Uint8List data) {
-    int currentWidth = 0;
-    int colorBit = 0;
+  String convertToString() {
+    if (ascii.version == 0) {
+      return utf8.decode(ascii.data);
+    }
+    final bitArray = BitArray(ascii.data);
     final buf = StringBuffer();
-    for (final int in data) {
-      if (ascii.color) {
-        if (colorBit == 0 || colorBit == 1) {
-          colorBit++;
-          continue;
-        } else {
-          colorBit = 0;
-        }
-      }
+    if (ascii.color) {
+      bitArray.readBits(8);
+    }
 
-      buf.write(CharSet.decode(int >> 4));
-      currentWidth++;
-      if (currentWidth == ascii.width) {
-        buf.writeln();
-        currentWidth = 0;
-      }
-      if (int & 15 != 0) {
-        buf.write(CharSet.decode(int & 15));
-        currentWidth++;
-        if (currentWidth == ascii.width) {
-          buf.writeln();
-          currentWidth = 0;
+    String lastChar = CharSet.decode(bitArray.readBits(4));
+    for (int j = 0; j < ascii.height!; j++) {
+      for (int i = 0; i < ascii.width!; i++) {
+        if (bitArray.readBit() == 1) {
+          if (ascii.color) {
+            final flags = bitArray.readBits(2);
+            if (flags == 2) {
+              bitArray.readBits(8);
+              buf.write(lastChar);
+              continue;
+            }
+            if (flags == 3) {
+              bitArray.readBits(8);
+            }
+            lastChar = CharSet.decode(bitArray.readBits(4));
+            buf.write(lastChar);
+          } else {
+            lastChar = CharSet.decode(bitArray.readBits(4));
+            buf.write(lastChar);
+          }
+        } else {
+          buf.write(lastChar);
         }
       }
+      buf.writeln();
     }
     return buf.toString();
   }
@@ -127,69 +155,50 @@ class Decoder {
     if (!ascii.color || ascii.version == 0) {
       return [TextSpan(text: ascii.toDisplayString())];
     }
-    int currentWidth = 0;
-    int colorBit = 0;
-    final spans = <InlineSpan>[];
-    Color? color1, color2;
 
-    StringBuffer buffer = StringBuffer();
-    Color? lastColor;
+    final bitArray = BitArray(ascii.data);
 
-    void flushBuffer(Color? color) {
-      if (buffer.isNotEmpty) {
-        spans.add(
-          TextSpan(text: buffer.toString(), style: TextStyle(color: color)),
-        );
-        buffer.clear();
+    final buf = StringBuffer();
+    int lastColor = bitArray.readBits(8);
+    String lastChar = CharSet.decode(bitArray.readBits(4));
+    final List<InlineSpan> spans = [];
+
+    for (int j = 0; j < ascii.height!; j++) {
+      for (int i = 0; i < ascii.width!; i++) {
+        // check if change bit happened
+        if (bitArray.readBit() == 1) {
+          final didColorChange = bitArray.readBit() == 1;
+          final didCharChange = bitArray.readBit() == 1;
+
+          //Color Changed
+          if (didColorChange) {
+            lastColor = bitArray.readBits(8);
+            spans.add(
+              TextSpan(
+                text: buf.toString(),
+                style: TextStyle(color: colorFromByte(lastColor)),
+              ),
+            );
+            buf.clear();
+          }
+          // Char Changed
+          if (didCharChange) {
+            lastChar = CharSet.decode(bitArray.readBits(4));
+          }
+        }
+        buf.write(lastChar);
       }
+      buf.writeln();
     }
 
-    for (final byte in data) {
-      if (colorBit == 0) {
-        colorBit++;
-        color1 = colorFromByte(byte);
-        continue;
-      } else if (colorBit == 1) {
-        colorBit++;
-        color2 = colorFromByte(byte);
-        continue;
-      } else {
-        colorBit = 0;
-      }
-
-      // High nibble
-      final highChar = CharSet.decode(byte >> 4);
-      if (lastColor != color1) {
-        flushBuffer(lastColor);
-        lastColor = color1;
-      }
-      buffer.write(highChar);
-      currentWidth++;
-      if (currentWidth == ascii.width) {
-        flushBuffer(lastColor);
-        spans.add(const TextSpan(text: '\n'));
-        currentWidth = 0;
-      }
-
-      // Low nibble (only if not 0)
-      final lowNibble = byte & 0x0F;
-      if (lowNibble != 0) {
-        final lowChar = CharSet.decode(lowNibble);
-        if (lastColor != color2) {
-          flushBuffer(lastColor);
-          lastColor = color2;
-        }
-        buffer.write(lowChar);
-        currentWidth++;
-        if (currentWidth == ascii.width) {
-          flushBuffer(lastColor);
-          spans.add(const TextSpan(text: '\n'));
-          currentWidth = 0;
-        }
-      }
+    if (buf.length != 0) {
+      spans.add(
+        TextSpan(
+          text: buf.toString(),
+          style: TextStyle(color: colorFromByte(lastColor)),
+        ),
+      );
     }
-
-    flushBuffer(lastColor);
     return spans;
   }
 }

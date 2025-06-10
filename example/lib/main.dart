@@ -120,7 +120,7 @@ class _MyAppState extends State<MyApp> {
                         width: 500,
                         height: 600,
                         child: AsciiImageWidget(
-                          ascii: AsciiImage.fromV0String(frame),
+                          ascii: AsciiImage.fromSimpleString(frame),
                         ),
                       ),
             ),
