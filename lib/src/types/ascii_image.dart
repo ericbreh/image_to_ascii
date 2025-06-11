@@ -141,7 +141,7 @@ class AsciiImage {
   }
 
   List<InlineSpan> toTextSpans() {
-    return _decoder.convertToTextSpans(data);
+    return _decoder.convertToTextSpans();
   }
 
   @override

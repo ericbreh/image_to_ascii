@@ -64,7 +64,6 @@ class Encoder {
       if (!color) {
         _prevChar = CharSet.encode(grayVal, dark);
         _bitBuffer.addBits(_prevChar!, 4);
-        // print(bitsAdded);
         return;
       }
 
@@ -151,7 +150,7 @@ class Decoder {
     return Color.fromARGB(255, r, g, b);
   }
 
-  List<InlineSpan> convertToTextSpans(Uint8List data) {
+  List<InlineSpan> convertToTextSpans() {
     if (!ascii.color || ascii.version == 0) {
       return [TextSpan(text: ascii.toDisplayString())];
     }
@@ -172,13 +171,13 @@ class Decoder {
 
           //Color Changed
           if (didColorChange) {
-            lastColor = bitArray.readBits(8);
             spans.add(
               TextSpan(
                 text: buf.toString(),
                 style: TextStyle(color: colorFromByte(lastColor)),
               ),
             );
+            lastColor = bitArray.readBits(8);
             buf.clear();
           }
           // Char Changed
