@@ -6,11 +6,13 @@ class AsciiImageWidget extends StatelessWidget {
   final AsciiImage ascii;
   final double? height;
   final double? width;
+  final TextStyle? textStyle;
 
   const AsciiImageWidget({
     super.key,
     this.width,
     this.height,
+    this.textStyle,
     required this.ascii,
   });
 
@@ -19,7 +21,8 @@ class AsciiImageWidget extends StatelessWidget {
     final textColor = ascii.dark ? Colors.white : Colors.black;
     final backgroundColor = ascii.dark ? Colors.black : Colors.white;
 
-    final baseTextStyle = defaultTextStyle.copyWith(color: textColor);
+    final baseTextStyle =
+        textStyle ?? defaultTextStyle.copyWith(color: textColor);
 
     return SizedBox(
       height: height,
