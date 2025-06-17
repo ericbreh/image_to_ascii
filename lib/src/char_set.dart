@@ -1,8 +1,3 @@
-import 'dart:ui' as ui;
-
-import 'package:flutter/material.dart';
-import 'package:image_to_ascii/src/constants.dart';
-
 class CharSet {
   static final _darkSet = ' .:-=+*#%@';
   static final _lightSet = '@%#*+=-:. ';

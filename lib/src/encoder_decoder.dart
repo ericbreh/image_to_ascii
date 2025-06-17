@@ -1,10 +1,30 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:flutter/painting.dart';
 import 'package:image_to_ascii/image_to_ascii.dart';
 import 'package:image_to_ascii/src/bit_buffer.dart';
 import 'package:image_to_ascii/src/char_set.dart';
+
+(int, int, int) colorsFromByte(int byte) {
+  // Extract color components from packed byte
+  int rVal = (byte >> 5) & 0x7;
+  int gVal = (byte >> 2) & 0x7;
+  int bVal = byte & 0x3;
+
+  // Scale back to 0-255 range
+  int r = (rVal * 255 / 7).round();
+  int g = (gVal * 255 / 7).round();
+  int b = (bVal * 255 / 3).round();
+  return (r, g, b);
+}
+
+Color colorFromByte(int byte) {
+  final (r, g, b) = colorsFromByte(byte);
+  return Color.fromARGB(255, r, g, b);
+}
 
 int _getListLenght(int wh, bool color) {
   if (!color) {
@@ -134,20 +154,6 @@ class Decoder {
       buf.writeln();
     }
     return buf.toString();
-  }
-
-  Color colorFromByte(int byte) {
-    // Extract color components from packed byte
-    int rVal = (byte >> 5) & 0x7;
-    int gVal = (byte >> 2) & 0x7;
-    int bVal = byte & 0x3;
-
-    // Scale back to 0-255 range
-    int r = (rVal * 255 / 7).round();
-    int g = (gVal * 255 / 7).round();
-    int b = (bVal * 255 / 3).round();
-
-    return Color.fromARGB(255, r, g, b);
   }
 
   List<InlineSpan> convertToTextSpans() {

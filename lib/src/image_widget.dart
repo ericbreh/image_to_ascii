@@ -1,5 +1,9 @@
+import 'dart:async';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:image_to_ascii/src/constants.dart';
+import 'package:image_to_ascii/src/render_isolate.dart';
 import 'package:image_to_ascii/src/types/ascii_image.dart';
 
 class AsciiImageWidget extends StatelessWidget {
@@ -33,7 +37,10 @@ class AsciiImageWidget extends StatelessWidget {
           decoration: BoxDecoration(color: backgroundColor),
           child: FittedBox(
             fit: BoxFit.contain,
-            child: _AsciiWidget(ascii: ascii, style: baseTextStyle),
+            child:
+                (ascii.version == 0 || !ascii.color || (ascii.width ?? 0) < 70)
+                    ? _AsciiWidget(ascii: ascii, style: baseTextStyle)
+                    : _FastAsciiWidget(ascii: ascii),
           ),
         ),
       ),
@@ -106,5 +113,53 @@ class _AsciiPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _AsciiPainter oldDelegate) {
     return oldDelegate.tp != tp;
+  }
+}
+
+class _FastAsciiWidget extends StatefulWidget {
+  final AsciiImage ascii;
+  const _FastAsciiWidget({required this.ascii});
+
+  @override
+  State<_FastAsciiWidget> createState() => _FastAsciiWidgetState();
+}
+
+class _FastAsciiWidgetState extends State<_FastAsciiWidget> {
+  Future<ui.Image>? image;
+
+  @override
+  void initState() {
+    super.initState();
+    image = RenderWorker.getInstance().then(
+      (iso) => iso.render(ascii: widget.ascii),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _FastAsciiWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.ascii != oldWidget.ascii) {
+      image = RenderWorker.getInstance().then(
+        (iso) => iso.render(ascii: widget.ascii),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<ui.Image>(
+      future: image,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        } else if (snapshot.hasData) {
+          return RawImage(image: snapshot.data);
+        } else {
+          return const Center(child: Text('No image'));
+        }
+      },
+    );
   }
 }
