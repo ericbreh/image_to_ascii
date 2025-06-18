@@ -11,12 +11,16 @@ class AsciiImageWidget extends StatelessWidget {
   final double? height;
   final double? width;
   final TextStyle? textStyle;
+  final bool forceCanvas;
+  final double charAspectRatio;
 
   const AsciiImageWidget({
     super.key,
     this.width,
     this.height,
     this.textStyle,
+    this.forceCanvas = false,
+    this.charAspectRatio = 0.7,
     required this.ascii,
   });
 
@@ -38,9 +42,15 @@ class AsciiImageWidget extends StatelessWidget {
           child: FittedBox(
             fit: BoxFit.contain,
             child:
-                (ascii.version == 0 || !ascii.color || (ascii.width ?? 0) < 70)
+                (ascii.version > 1)
+                    ? Text('Image not supported. Check for updates')
+                    : (ascii.version == 0 || forceCanvas)
                     ? _AsciiWidget(ascii: ascii, style: baseTextStyle)
-                    : _FastAsciiWidget(ascii: ascii),
+                    : _FastAsciiWidget(
+                      ascii: ascii,
+                      style: baseTextStyle,
+                      charAspectRatio: charAspectRatio,
+                    ),
           ),
         ),
       ),
@@ -118,7 +128,13 @@ class _AsciiPainter extends CustomPainter {
 
 class _FastAsciiWidget extends StatefulWidget {
   final AsciiImage ascii;
-  const _FastAsciiWidget({required this.ascii});
+  final TextStyle style;
+  final double charAspectRatio;
+  const _FastAsciiWidget({
+    required this.ascii,
+    required this.style,
+    required this.charAspectRatio,
+  });
 
   @override
   State<_FastAsciiWidget> createState() => _FastAsciiWidgetState();
@@ -126,23 +142,44 @@ class _FastAsciiWidget extends StatefulWidget {
 
 class _FastAsciiWidgetState extends State<_FastAsciiWidget> {
   Future<ui.Image>? image;
+  ui.Image? currentImage;
 
   @override
   void initState() {
     super.initState();
-    image = RenderWorker.getInstance().then(
-      (iso) => iso.render(ascii: widget.ascii),
-    );
+    image = RenderWorker.getInstance(
+      style: widget.style,
+      charAspectRatio: widget.charAspectRatio,
+    ).then((iso) => iso.render(ascii: widget.ascii));
+    image?.then((img) {
+      if (!mounted) {
+        img.dispose();
+      }
+    });
   }
 
   @override
   void didUpdateWidget(covariant _FastAsciiWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.ascii != oldWidget.ascii) {
-      image = RenderWorker.getInstance().then(
-        (iso) => iso.render(ascii: widget.ascii),
-      );
+      currentImage?.dispose();
+      currentImage = null;
+      image = RenderWorker.getInstance(
+        style: widget.style,
+        charAspectRatio: widget.charAspectRatio,
+      ).then((iso) => iso.render(ascii: widget.ascii));
+      image?.then((img) {
+        if (!mounted) {
+          img.dispose();
+        }
+      });
     }
+  }
+
+  @override
+  void dispose() {
+    currentImage?.dispose();
+    super.dispose();
   }
 
   @override
@@ -150,14 +187,21 @@ class _FastAsciiWidgetState extends State<_FastAsciiWidget> {
     return FutureBuilder<ui.Image>(
       future: image,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+        if (snapshot.connectionState == ConnectionState.done &&
+            snapshot.hasData) {
+          currentImage = snapshot.data;
+          return RawImage(image: snapshot.data);
         } else if (snapshot.hasError) {
           return Center(child: Text('Error: ${snapshot.error}'));
-        } else if (snapshot.hasData) {
-          return RawImage(image: snapshot.data);
         } else {
-          return const Center(child: Text('No image'));
+          return SizedBox(
+            //goofy
+            width: 900,
+            child: AspectRatio(
+              aspectRatio: widget.ascii.width! / widget.ascii.height!,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          );
         }
       },
     );
