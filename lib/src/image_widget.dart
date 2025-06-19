@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_to_ascii/src/constants.dart';
 import 'package:image_to_ascii/src/render_isolate.dart';
@@ -44,7 +45,8 @@ class AsciiImageWidget extends StatelessWidget {
             child:
                 (ascii.version > 1)
                     ? Text('Image not supported. Check for updates')
-                    : (ascii.version == 0 || forceCanvas)
+                    //web does not support isolates
+                    : (ascii.version == 0 || forceCanvas || kIsWeb)
                     ? _AsciiWidget(ascii: ascii, style: baseTextStyle)
                     : _FastAsciiWidget(
                       ascii: ascii,
