@@ -34,6 +34,7 @@ void main() {
 
   group('Aspect ratio preservation tests', () {
     late double originalAspectRatio;
+    const double charAspectRatio = 0.7;
 
     setUpAll(() async {
       // Get the original image's aspect ratio for comparison
@@ -59,7 +60,7 @@ void main() {
         );
 
         // Count width (characters in first line) and height (number of lines)
-        final lines = asciiArt.toString().trim().split('\n');
+        final lines = asciiArt.toDisplayString().trim().split('\n');
         final actualHeight = lines.length;
         final actualWidth = lines.first.length;
 
@@ -96,7 +97,7 @@ void main() {
         width: width,
       );
 
-      final lines = asciiArt.toString().trim().split('\n');
+      final lines = asciiArt.toDisplayString().trim().split('\n');
       final actualHeight = lines.length;
       final actualWidth = lines.first.length;
 
@@ -106,8 +107,9 @@ void main() {
         reason: 'ASCII art width should match specified width',
       );
 
-      // Expected height based on original aspect ratio
-      final expectedHeight = (width / originalAspectRatio).round();
+      // Expected height accounts for charAspectRatio correction
+      final adjustedAspectRatio = originalAspectRatio / charAspectRatio;
+      final expectedHeight = (width / adjustedAspectRatio).round();
       expect(
         actualHeight,
         equals(expectedHeight),
@@ -119,7 +121,7 @@ void main() {
       print('ASCII aspect ratio with only width: $asciiAspectRatio');
       expect(
         asciiAspectRatio,
-        closeTo(originalAspectRatio, 0.1),
+        closeTo(adjustedAspectRatio, 0.1),
         reason: 'Aspect ratio should be preserved when only width is specified',
       );
     });
@@ -132,7 +134,7 @@ void main() {
         height: height,
       );
 
-      final lines = asciiArt.toString().trim().split('\n');
+      final lines = asciiArt.toDisplayString().trim().split('\n');
       final actualHeight = lines.length;
       final actualWidth = lines.first.length;
 
@@ -142,8 +144,9 @@ void main() {
         reason: 'ASCII art height should match specified height',
       );
 
-      // Expected width based on original aspect ratio
-      final expectedWidth = (height * originalAspectRatio).round();
+      // Expected width accounts for charAspectRatio correction
+      final adjustedAspectRatio = originalAspectRatio / charAspectRatio;
+      final expectedWidth = (height * adjustedAspectRatio).round();
       expect(
         actualWidth,
         equals(expectedWidth),
@@ -155,7 +158,7 @@ void main() {
       print('ASCII aspect ratio with only height: $asciiAspectRatio');
       expect(
         asciiAspectRatio,
-        closeTo(originalAspectRatio, 0.1),
+        closeTo(adjustedAspectRatio, 0.1),
         reason:
             'Aspect ratio should be preserved when only height is specified',
       );
@@ -166,7 +169,7 @@ void main() {
       () async {
         final asciiArt = await convertImagePathToAscii(testFilePath);
 
-        final lines = asciiArt.toString().trim().split('\n');
+        final lines = asciiArt.toDisplayString().trim().split('\n');
         final actualHeight = lines.length;
         final actualWidth = lines.first.length;
 
@@ -176,8 +179,9 @@ void main() {
           reason: 'ASCII art should use default width of 150',
         );
 
-        // Expected height based on original aspect ratio
-        final expectedHeight = (150 / originalAspectRatio).round();
+        // Expected height accounts for charAspectRatio correction
+        final adjustedAspectRatio = originalAspectRatio / charAspectRatio;
+        final expectedHeight = (150 / adjustedAspectRatio).round();
         expect(
           actualHeight,
           equals(expectedHeight),
@@ -189,7 +193,7 @@ void main() {
         print('ASCII aspect ratio with default params: $asciiAspectRatio');
         expect(
           asciiAspectRatio,
-          closeTo(originalAspectRatio, 0.1),
+          closeTo(adjustedAspectRatio, 0.1),
           reason: 'Aspect ratio should be preserved with default parameters',
         );
       },
