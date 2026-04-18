@@ -25,6 +25,7 @@ class AsciiCameraController {
   final List<int> _backCameras = [];
   int _currentCameraIndex = 0;
   bool _isStreamActive = false;
+  bool _cameraInitialized = false;
   final _asciiStreamCtrl = StreamController<String>.broadcast();
   bool _workerBusy = false;
   // Calculated dimensions
@@ -40,8 +41,26 @@ class AsciiCameraController {
   List<int> get backCameras => _backCameras;
   List<int> get frontCameras => _frontCameras;
 
+  bool flashIsOff() =>
+      !_cameraInitialized || _cam.value.flashMode == FlashMode.off;
+
+  bool flashIsAuto() =>
+      _cameraInitialized && _cam.value.flashMode == FlashMode.auto;
+
+  bool flashIsOn() =>
+      _cameraInitialized && _cam.value.flashMode == FlashMode.always;
+
+  Future<void> _setFlashMode(FlashMode mode) async {
+    if (!_cameraInitialized || !_cam.value.isInitialized) return;
+    await _cam.setFlashMode(mode);
+  }
+
+  Future<void> flashOn() => _setFlashMode(FlashMode.always);
+  Future<void> flashOff() => _setFlashMode(FlashMode.off);
+  Future<void> flashAuto() => _setFlashMode(FlashMode.auto);
+
   Future<XFile?> takePicture() async {
-    if (!_cam.value.isInitialized) {
+    if (!_cameraInitialized || !_cam.value.isInitialized) {
       return null;
     }
     try {
@@ -71,6 +90,7 @@ class AsciiCameraController {
       imageFormatGroup: ImageFormatGroup.yuv420,
     );
     await _cam.initialize();
+    _cameraInitialized = true;
 
     // Calculate dimensions based on camera aspect ratio
     _calculateDimensions();
@@ -115,6 +135,7 @@ class AsciiCameraController {
 
       // Dispose current controller
       await _cam.dispose();
+      _cameraInitialized = false;
 
       // Switch to specified camera
       _currentCameraIndex = cameraIndex;
@@ -129,6 +150,7 @@ class AsciiCameraController {
 
       // Initialize the new camera
       await _cam.initialize();
+      _cameraInitialized = true;
 
       // Recalculate dimensions for the new camera
       _calculateDimensions();
@@ -168,11 +190,14 @@ class AsciiCameraController {
   }
 
   Future<void> dispose() async {
-    if (_isStreamActive) {
+    if (_cameraInitialized && _isStreamActive) {
       await _cam.stopImageStream();
       _isStreamActive = false;
     }
-    await _cam.dispose();
+    if (_cameraInitialized) {
+      await _cam.dispose();
+      _cameraInitialized = false;
+    }
     _worker.kill(priority: Isolate.immediate);
     await _asciiStreamCtrl.close();
   }

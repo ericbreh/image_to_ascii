@@ -53,7 +53,27 @@ class _CameraPageState extends State<CameraPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('ASCII Camera')),
+      appBar: AppBar(
+        title: const Text('ASCII Camera'),
+        actions: [
+          IconButton(
+            onPressed:
+                !cameraAvailable
+                    ? null
+                    : () async {
+                      if (_ctrl.flashIsAuto()) {
+                        await _ctrl.flashOff();
+                      } else {
+                        await _ctrl.flashAuto();
+                      }
+                      setState(() {});
+                    },
+            icon: Icon(
+              _ctrl.flashIsAuto() ? Icons.flash_auto : Icons.flash_off,
+            ),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Expanded(
@@ -63,10 +83,8 @@ class _CameraPageState extends State<CameraPage> {
                 stream: _ctrl.stream,
                 builder: (context, snapshot) {
                   if (snapshot.hasData && snapshot.data != null) {
-                    return Center(
-                      child: AsciiImageWidget(
-                        ascii: AsciiImage.fromSimpleString(snapshot.data!),
-                      ),
+                    return AsciiImageWidget(
+                      ascii: AsciiImage.fromSimpleString(snapshot.data!),
                     );
                   }
                   return const Center(child: CircularProgressIndicator());
