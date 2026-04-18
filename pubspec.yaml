@@ -1,7 +1,8 @@
 name: image_to_ascii
-description: "Convert images to ASCII art."
+description: "Convert images or camera output to ASCII art in real-time."
 version: 0.0.1
-homepage:
+homepage: https://github.com/ericbreh/image_to_ascii
+repository: https://github.com/ericbreh/image_to_ascii
 
 environment:
   sdk: ^3.7.2
@@ -11,7 +12,7 @@ dependencies:
   flutter:
     sdk: flutter
   camera: ^0.11.1
-  camera_avfoundation: 0.9.19+1
+  camera_avfoundation: ^0.9.19+1
   google_fonts: ^6.2.1
 
 dev_dependencies:

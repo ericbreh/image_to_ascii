@@ -1,3 +1,6 @@
 ## 0.0.1
 
-* TODO: Describe initial release.
+- Initial release
+- Real-time ASCII camera preview
+- Image to ASCII conversion
+
