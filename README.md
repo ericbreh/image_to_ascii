@@ -1,39 +1,80 @@
-<!--
-This README describes the package. If you publish this package to pub.dev,
-this README's contents appear on the landing page for your package.
+# image_to_ascii
 
-For information about how to write a good package README, see the guide for
-[writing package pages](https://dart.dev/tools/pub/writing-package-pages).
+Convert images or camera output to ASCII art in real-time.
 
-For general information about developing packages, see the Dart guide for
-[creating packages](https://dart.dev/guides/libraries/create-packages)
-and the Flutter guide for
-[developing packages and plugins](https://flutter.dev/to/develop-packages).
--->
-
-TODO: Put a short description of the package here that helps potential users
-know whether this package might be useful for them.
-
-## Features
-
-TODO: List what your package can do. Maybe include images, gifs, or videos.
-
-## Getting started
-
-TODO: List prerequisites and provide or point to information on how to
-start using the package.
+<img src="assets/camera.jpg" width="45%" alt="Camera"/> <img src="assets/edit.jpg" width="45%" alt="Edit"/>
 
 ## Usage
 
-TODO: Include short and useful examples for package users. Add longer examples
-to `/example` folder.
+### Real-time camera preview
 
 ```dart
-const like = 'sample';
+import 'package:image_to_ascii/image_to_ascii.dart';
+
+// Create camera controller
+final controller = AsciiCameraController(
+  darkMode: true,
+  width: 150,
+);
+await controller.initialize();
+
+// Display live ASCII using StreamBuilder
+StreamBuilder(
+  stream: controller.stream,
+  builder: (context, snapshot) {
+    if (snapshot.hasData) {
+      return AsciiImageWidget(
+        ascii: AsciiImage.fromSimpleString(snapshot.data!),
+      );
+    }
+    return CircularProgressIndicator();
+  },
+)
+
+// Control flash
+await controller.flashOn();
+await controller.flashOff();
+await controller.flashAuto();
+
+// Switch cameras
+await controller.switchToFront();
+await controller.switchToBack();
+
+// Take a picture and convert to ASCII
+final picture = await controller.takePicture();
+// Then pass to convertImagePathToAscii()
+
+// Dispose when done
+await controller.dispose();
 ```
 
-## Additional information
+### Convert image to ASCII
 
-TODO: Tell users more about the package: where to find more information, how to
-contribute to the package, how to file issues, what response they can expect
-from the package authors, and more.
+```dart
+import 'package:image_to_ascii/image_to_ascii.dart';
+
+// Convert image file to ASCII
+final asciiImage = await convertImagePathToAscii(
+  'path/to/image.png',
+  dark: true,
+  color: false,
+);
+
+// Display
+AsciiImageWidget(ascii: asciiImage)
+```
+
+### Options
+
+- `width` / `height` - Set output dimensions (density)
+- `dark` / `darkMode` - Invert colors (white text on black)
+- `color` - Enable colored ASCII output
+
+```dart
+convertImagePathToAscii(
+  'image.png',
+  width: 100,
+  dark: true,
+  color: true,
+)
+```
