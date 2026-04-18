@@ -2,7 +2,7 @@
 
 Convert images or camera output to ASCII art in real-time.
 
-<img src="assets/camera.jpg" width="45%" alt="Camera"/> <img src="assets/edit.jpg" width="45%" alt="Edit"/>
+<img src="assets/camera.jpg" width="25%" alt="Camera"/> <img src="assets/edit1.jpg" width="25%" alt="Edit"/> <img src="assets/edit2.jpg" width="25%" alt="Edit"/>
 
 ## Usage
 
@@ -12,10 +12,7 @@ Convert images or camera output to ASCII art in real-time.
 import 'package:image_to_ascii/image_to_ascii.dart';
 
 // Create camera controller
-final controller = AsciiCameraController(
-  darkMode: true,
-  width: 150,
-);
+final controller = AsciiCameraController();
 await controller.initialize();
 
 // Display live ASCII using StreamBuilder
@@ -54,11 +51,10 @@ await controller.dispose();
 import 'package:image_to_ascii/image_to_ascii.dart';
 
 // Convert image file to ASCII
-final asciiImage = await convertImagePathToAscii(
-  'path/to/image.png',
-  dark: true,
-  color: false,
-);
+final asciiImage = await convertImagePathToAscii('path/to/image.png');
+
+// Or convert a ui.Image directly
+final asciiImage = await convertImageToAscii(uiImage);
 
 // Display
 AsciiImageWidget(ascii: asciiImage)
@@ -71,10 +67,15 @@ AsciiImageWidget(ascii: asciiImage)
 - `color` - Enable colored ASCII output
 
 ```dart
+AsciiCameraController(
+  darkMode: true,
+  width: 150,
+);
+
 convertImagePathToAscii(
   'image.png',
   width: 100,
   dark: true,
   color: true,
-)
+);
 ```
