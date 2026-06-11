@@ -9,7 +9,8 @@ dependencies:
   flutter:
     sdk: flutter
   image_picker: ^1.1.2
-  
+  camera_desktop: ^1.1.7
+
   image_to_ascii:
     path: ../
 
