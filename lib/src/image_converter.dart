@@ -37,7 +37,7 @@ Future<AsciiImage> convertImagePathToAscii(
     if (height != null) {
       targetWidth = (height * currentAspectRatio).round();
     } else {
-      targetWidth = width ?? 150;
+      targetWidth = width ?? defaultAsciiWidth;
       targetHeight = (targetWidth / currentAspectRatio).round();
     }
   }

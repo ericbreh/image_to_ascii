@@ -2,14 +2,16 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:image_to_ascii/src/constants.dart';
+
 /// Loads an image from the given [path], then crops it to either a 5:4 or 4:5
 /// aspect ratio (centered) based on the original image's dimensions.
 Future<ui.Image> cropToAspectRatio(
   String path, {
   double portrait = 4 / 5,
   double landscape = 5 / 4,
-  int? desiredWidth,
-  double vScale = 1.0,
+  int desiredWidth = defaultAsciiWidth,
+  double vScale = defaultVScale,
 }) async {
   final Uint8List bytes = await File(path).readAsBytes();
 
@@ -21,10 +23,7 @@ Future<ui.Image> cropToAspectRatio(
 
   final ui.Codec codec = await descriptor.instantiateCodec(
     targetWidth: isPortrait ? desiredWidth : null,
-    targetHeight:
-        !isPortrait && desiredWidth != null
-            ? (desiredWidth * landscape).round()
-            : null,
+    targetHeight: !isPortrait ? (desiredWidth * landscape).round() : null,
   );
 
   final ui.FrameInfo frameInfo = await codec.getNextFrame();

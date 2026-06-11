@@ -3,11 +3,12 @@ import 'dart:io';
 import 'dart:isolate';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
+import 'package:image_to_ascii/src/constants.dart';
 
 class AsciiCameraController {
   AsciiCameraController({
-    this.width = 150,
-    this.height,
+    this.width = defaultAsciiWidth,
+    this.height = defaultAsciiWidth,
     this.preset = ResolutionPreset.low,
     this.darkMode = false,
   });

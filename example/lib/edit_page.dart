@@ -1,6 +1,5 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:image_to_ascii/image_to_ascii.dart';
 
@@ -15,7 +14,7 @@ class _EditPageState extends State<EditPage> {
   AsciiImage? asciiPicture;
   bool isDark = true;
   bool isColor = false;
-  int density = 150;
+  int density = defaultAsciiWidth;
   bool densityControllVisible = false;
   bool downloading = false;
   GlobalKey imageKey = GlobalKey();
@@ -26,7 +25,6 @@ class _EditPageState extends State<EditPage> {
     final cropped = await cropToAspectRatio(
       widget.imagePath,
       desiredWidth: density,
-      vScale: 0.75,
     );
     final img = await convertImageToAscii(
       cropped,
@@ -37,6 +35,29 @@ class _EditPageState extends State<EditPage> {
       asciiPicture = img;
       isLoading = false;
     });
+  }
+
+  void toggleDarkMode() {
+    setState(() => isDark = !isDark);
+    convert();
+  }
+
+  void toggleColor() {
+    setState(() => isColor = !isColor);
+    convert();
+  }
+
+  void changeDensity(int newDensity) {
+    setState(() => density = newDensity);
+    convert();
+  }
+
+  double mapDensityToSlider(int densityValue) {
+    return ((densityValue - 10) / 190) * 100;
+  }
+
+  int mapSliderToDensity(double sliderValue) {
+    return (sliderValue / 100 * 190 + 10).round();
   }
 
   @override
@@ -89,9 +110,7 @@ class _EditPageState extends State<EditPage> {
                         key: imageKey,
                         child: Stack(
                           children: [
-                            Center(
-                              child: AsciiImageWidget(ascii: asciiPicture!),
-                            ),
+                            Align(child: AsciiImageWidget(ascii: asciiPicture!)),
                             if (isLoading)
                               SizedBox.expand(
                                 child: BackdropFilter(
@@ -117,15 +136,17 @@ class _EditPageState extends State<EditPage> {
                   children: [
                     Expanded(
                       child: Slider(
-                        value: ((density - 10) / 190) * 100,
+                        value: mapDensityToSlider(density),
                         min: 0,
                         max: 100,
-                        onChanged: (v) {
-                          setState(
-                            () => density = (v / 100 * 190 + 10).round(),
-                          );
+                        divisions: 100,
+                        label: mapDensityToSlider(density).toInt().toString(),
+                        onChanged: (value) {
+                          setState(() => density = mapSliderToDensity(value));
                         },
-                        onChangeEnd: (v) => convert(),
+                        onChangeEnd: (value) {
+                          changeDensity(mapSliderToDensity(value));
+                        },
                       ),
                     ),
                   ],
@@ -139,23 +160,19 @@ class _EditPageState extends State<EditPage> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 IconButton(
-                  onPressed: () {
-                    setState(() => isDark = !isDark);
-                    convert();
-                  },
+                  onPressed: toggleDarkMode,
                   icon: Icon(
                     size: 35,
                     isDark ? Icons.dark_mode : Icons.light_mode,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 IconButton(
-                  onPressed: () {
-                    setState(() => isColor = !isColor);
-                    convert();
-                  },
+                  onPressed: toggleColor,
                   icon: Icon(
                     size: 35,
                     isColor ? Icons.palette : Icons.filter_b_and_w,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 IconButton(
@@ -167,10 +184,9 @@ class _EditPageState extends State<EditPage> {
                   icon: Icon(
                     size: 35,
                     Icons.tune,
-                    color:
-                        densityControllVisible
-                            ? Theme.of(context).colorScheme.primary
-                            : null,
+                    color: densityControllVisible
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ],

@@ -5,13 +5,26 @@ import 'package:image_picker/image_picker.dart';
 import 'package:image_to_ascii/image_to_ascii.dart';
 import 'edit_page.dart';
 
-class CameraPage extends StatefulWidget {
+class CameraPage extends StatelessWidget {
   const CameraPage({super.key});
+
   @override
-  State<CameraPage> createState() => _CameraPageState();
+  Widget build(BuildContext context) {
+    return InnerCameraPage(
+      isDark: Theme.of(context).brightness == Brightness.dark,
+    );
+  }
 }
 
-class _CameraPageState extends State<CameraPage> {
+class InnerCameraPage extends StatefulWidget {
+  final bool isDark;
+  const InnerCameraPage({super.key, required this.isDark});
+
+  @override
+  State<InnerCameraPage> createState() => _InnerCameraPageState();
+}
+
+class _InnerCameraPageState extends State<InnerCameraPage> {
   late final AsciiCameraController _ctrl;
   bool cameraAvailable = false;
   String? cameraError;
@@ -19,7 +32,7 @@ class _CameraPageState extends State<CameraPage> {
   @override
   void initState() {
     super.initState();
-    _ctrl = AsciiCameraController(darkMode: true, width: 150, height: 150);
+    _ctrl = AsciiCameraController(darkMode: widget.isDark);
     _ctrl
         .initialize()
         .then((_) {
@@ -96,8 +109,10 @@ class _CameraPageState extends State<CameraPage> {
                 stream: _ctrl.stream,
                 builder: (context, snapshot) {
                   if (snapshot.hasData && snapshot.data != null) {
-                    return AsciiImageWidget(
-                      ascii: AsciiImage.fromSimpleString(snapshot.data!),
+                    return Align(
+                      child: AsciiImageWidget(
+                        ascii: AsciiImage.fromSimpleString(snapshot.data!),
+                      ),
                     );
                   }
                   if (cameraError != null) {
