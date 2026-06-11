@@ -79,3 +79,26 @@ convertImagePathToAscii(
   color: true,
 );
 ```
+
+## Linux desktop
+
+Linux desktop needs extra setup because the official `camera` plugin has no Linux implementation, and the file picker relies on GTK system libraries.
+
+### App dependencies
+
+Add `camera_desktop` to your app's `pubspec.yaml`:
+
+```yaml
+dependencies:
+  image_to_ascii: ^0.0.1
+  camera_desktop: ^1.1.7
+```
+
+### System dependencies
+
+Install these packages to build and run on Linux:
+
+- `gstreamer`
+- `gst-plugins-base`
+- `gst-plugins-good`
+- `gtk3`
