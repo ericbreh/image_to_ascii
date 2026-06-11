@@ -82,7 +82,7 @@ class AsciiCameraController {
   Future<void> initialize() async {
     _cameras = await availableCameras();
     _populateCameraLists();
-    _currentCameraIndex = _backCameras.first;
+    _currentCameraIndex = _backCameras.isNotEmpty ? _backCameras.first : 0;
     _cam = CameraController(
       _cameras[_currentCameraIndex],
       preset,
@@ -97,11 +97,13 @@ class AsciiCameraController {
 
     // spawn the worker
     final recvMain = ReceivePort();
-    if (Platform.isIOS) {
-      _worker = await Isolate.spawn(_workerIOS, recvMain.sendPort);
-    } else {
-      _worker = await Isolate.spawn(_workerAndroid, recvMain.sendPort);
-    }
+    final workerEntry =
+        Platform.isAndroid
+            ? _workerAndroid
+            : Platform.isIOS
+            ? _workerIOS
+            : _workerDesktop;
+    _worker = await Isolate.spawn(workerEntry, recvMain.sendPort);
     _workerSend = await recvMain.first as SendPort;
 
     // start stream
@@ -208,7 +210,7 @@ class AsciiCameraController {
     _workerBusy = true;
 
     final payload = _Payload(
-      img.planes[0].bytes, // Y plane
+      img.planes[0].bytes,
       img.width,
       img.height,
       _targetWidth,
@@ -216,6 +218,7 @@ class AsciiCameraController {
       darkMode,
       img.planes[0].bytesPerRow,
       cameras[_currentCameraIndex].lensDirection == CameraLensDirection.front,
+      isBgra: img.format.raw == 'BGRA',
     );
 
     final reply = ReceivePort();
@@ -234,6 +237,7 @@ class _Payload {
   final bool darkMode;
   final int bytesPerRow;
   final bool isFrontFacing;
+  final bool isBgra;
 
   const _Payload(
     this.y,
@@ -243,8 +247,9 @@ class _Payload {
     this.outH,
     this.darkMode,
     this.bytesPerRow,
-    this.isFrontFacing,
-  );
+    this.isFrontFacing, {
+    this.isBgra = false,
+  });
 }
 
 // android
@@ -332,6 +337,61 @@ void _workerIOS(SendPort mainSend) {
           if (index >= 0 && index < p.y.length) {
             final lum = p.y[index];
             sb.write(chars[(lum * (chars.length - 1)) ~/ 255]);
+          }
+        } else {
+          sb.write(' ');
+        }
+      }
+      sb.writeln();
+    }
+    ret.send(sb.toString());
+  });
+}
+
+void _workerDesktop(SendPort mainSend) {
+  final recv = ReceivePort();
+  mainSend.send(recv.sendPort);
+
+  final sb = StringBuffer();
+
+  recv.listen((msg) {
+    final _Payload p = msg[0] as _Payload;
+    final SendPort ret = msg[1] as SendPort;
+
+    final chars = p.darkMode ? ' .:-=+*#%@' : '@%#*+=-:. ';
+
+    final stepX = p.srcW / p.outW;
+    final stepY = p.srcH / p.outH;
+    sb.clear();
+
+    for (int y = 0; y < p.outH; y++) {
+      for (int x = 0; x < p.outW; x++) {
+        final srcX = (x * stepX).floor();
+        final srcY = (y * stepY).floor();
+
+        if (srcX >= 0 && srcX < p.srcW && srcY >= 0 && srcY < p.srcH) {
+          final index = srcY * p.bytesPerRow + srcX * 4;
+
+          if (index + 2 < p.y.length) {
+            final int r;
+            final int g;
+            final int b;
+            if (p.isBgra) {
+              b = p.y[index];
+              g = p.y[index + 1];
+              r = p.y[index + 2];
+            } else {
+              r = p.y[index];
+              g = p.y[index + 1];
+              b = p.y[index + 2];
+            }
+            final lum = (0.299 * r + 0.587 * g + 0.114 * b).round().clamp(
+              0,
+              255,
+            );
+            sb.write(chars[(lum * (chars.length - 1)) ~/ 255]);
+          } else {
+            sb.write(' ');
           }
         } else {
           sb.write(' ');

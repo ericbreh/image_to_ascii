@@ -54,22 +54,6 @@ class _EditPageState extends State<EditPage> {
     }
   }
 
-  void downloadPressed() async {
-    if (downloading || asciiPicture == null) return;
-    downloading = true;
-
-    final boundary =
-        imageKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
-    final image = await boundary.toImage(pixelRatio: 3.0);
-    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-    final pngBytes = byteData!.buffer.asUint8List();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Downloaded ${pngBytes.length} bytes')),
-    );
-    downloading = false;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -87,10 +71,6 @@ class _EditPageState extends State<EditPage> {
                 IconButton(
                   onPressed: copyPressed,
                   icon: const Icon(Icons.copy),
-                ),
-                IconButton(
-                  onPressed: downloadPressed,
-                  icon: const Icon(Icons.download),
                 ),
               ],
             ),
