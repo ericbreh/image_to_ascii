@@ -1,13 +1,21 @@
 import 'dart:io';
-import 'dart:ui' as ui;
 import 'package:image_to_ascii/image_to_ascii.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+Future<AsciiImage> convertTestImage(
+  String path, {
+  int desiredWidth = defaultAsciiWidth,
+  bool dark = false,
+  bool color = false,
+}) async {
+  final cropped = await cropToAspectRatio(path, desiredWidth: desiredWidth);
+  return convertImageToAscii(cropped, dark: dark, color: color);
+}
 
 void main() {
   final testFilePath = 'test/example.png';
 
   setUp(() {
-    // Ensure test file exists
     final file = File(testFilePath);
     expect(
       file.existsSync(),
@@ -16,187 +24,54 @@ void main() {
     );
   });
 
-  test('Basic Dart conversion does not throw', () async {
-    await expectLater(
-      convertImagePathToAscii(testFilePath, width: 150, height: 75),
-      completes,
-    );
+  test('crop and convert does not throw', () async {
+    await expectLater(convertTestImage(testFilePath), completes);
   });
 
-  test('Print ASCII art output', () async {
-    // Get and print the ASCII art
-    final asciiArt = await convertImagePathToAscii(testFilePath, dark: true);
-    print(asciiArt);
-
-    // Basic validation
+  test('ASCII art output is non-empty', () async {
+    final asciiArt = await convertTestImage(testFilePath, dark: true);
     expect(asciiArt.data, isNotEmpty);
+    expect(asciiArt.toDisplayString(), isNotEmpty);
   });
 
-  group('Aspect ratio preservation tests', () {
-    late double originalAspectRatio;
-    const double charAspectRatio = 0.7;
-
-    setUpAll(() async {
-      // Get the original image's aspect ratio for comparison
-      final bytes = await File(testFilePath).readAsBytes();
-      final codec = await ui.instantiateImageCodec(bytes);
-      final frame = await codec.getNextFrame();
-      final img = frame.image;
-      originalAspectRatio = img.width / img.height;
-
-      print('Original image aspect ratio: $originalAspectRatio');
-    });
-
-    test(
-      'Both width and height provided (no aspect ratio preservation)',
-      () async {
-        const int width = 80;
-        const int height = 40;
-
-        final asciiArt = await convertImagePathToAscii(
-          testFilePath,
-          width: width,
-          height: height,
-        );
-
-        // Count width (characters in first line) and height (number of lines)
-        final lines = asciiArt.toDisplayString().trim().split('\n');
-        final actualHeight = lines.length;
-        final actualWidth = lines.first.length;
-
-        expect(
-          actualWidth,
-          equals(width),
-          reason: 'ASCII art width should match specified width',
-        );
-        expect(
-          actualHeight,
-          equals(height),
-          reason: 'ASCII art height should match specified height',
-        );
-
-        // Calculate actual aspect ratio in the ASCII art
-        final asciiAspectRatio = actualWidth / actualHeight;
-        print('ASCII aspect ratio with both params: $asciiAspectRatio');
-
-        // When both dimensions are specified, aspect ratio can be different
-        expect(
-          asciiAspectRatio,
-          isNot(closeTo(originalAspectRatio, 0.1)),
-          reason:
-              'Aspect ratio should not be preserved when both dimensions are specified',
-        );
-      },
-    );
-
-    test('Only width provided (height calculated from aspect ratio)', () async {
-      const int width = 100;
-
-      final asciiArt = await convertImagePathToAscii(
+  group('cropToAspectRatio + convertImageToAscii', () {
+    test('output dimensions match cropped image', () async {
+      const desiredWidth = 100;
+      final cropped = await cropToAspectRatio(
         testFilePath,
-        width: width,
+        desiredWidth: desiredWidth,
       );
+      final asciiArt = await convertImageToAscii(cropped);
 
       final lines = asciiArt.toDisplayString().trim().split('\n');
-      final actualHeight = lines.length;
-      final actualWidth = lines.first.length;
-
-      expect(
-        actualWidth,
-        equals(width),
-        reason: 'ASCII art width should match specified width',
-      );
-
-      // Expected height accounts for charAspectRatio correction
-      final adjustedAspectRatio = originalAspectRatio / charAspectRatio;
-      final expectedHeight = (width / adjustedAspectRatio).round();
-      expect(
-        actualHeight,
-        equals(expectedHeight),
-        reason: 'ASCII art height should be calculated from aspect ratio',
-      );
-
-      // Verify aspect ratio is preserved
-      final asciiAspectRatio = actualWidth / actualHeight;
-      print('ASCII aspect ratio with only width: $asciiAspectRatio');
-      expect(
-        asciiAspectRatio,
-        closeTo(adjustedAspectRatio, 0.1),
-        reason: 'Aspect ratio should be preserved when only width is specified',
-      );
+      expect(lines.first.length, equals(cropped.width));
+      expect(lines.length, equals(cropped.height));
     });
 
-    test('Only height provided (width calculated from aspect ratio)', () async {
-      const int height = 50;
-
-      final asciiArt = await convertImagePathToAscii(
+    test('density controls output width', () async {
+      const desiredWidth = 80;
+      final cropped = await cropToAspectRatio(
         testFilePath,
-        height: height,
+        desiredWidth: desiredWidth,
       );
+      final asciiArt = await convertImageToAscii(cropped);
 
-      final lines = asciiArt.toDisplayString().trim().split('\n');
-      final actualHeight = lines.length;
-      final actualWidth = lines.first.length;
-
+      expect(asciiArt.width, equals(desiredWidth));
       expect(
-        actualHeight,
-        equals(height),
-        reason: 'ASCII art height should match specified height',
-      );
-
-      // Expected width accounts for charAspectRatio correction
-      final adjustedAspectRatio = originalAspectRatio / charAspectRatio;
-      final expectedWidth = (height * adjustedAspectRatio).round();
-      expect(
-        actualWidth,
-        equals(expectedWidth),
-        reason: 'ASCII art width should be calculated from aspect ratio',
-      );
-
-      // Verify aspect ratio is preserved
-      final asciiAspectRatio = actualWidth / actualHeight;
-      print('ASCII aspect ratio with only height: $asciiAspectRatio');
-      expect(
-        asciiAspectRatio,
-        closeTo(adjustedAspectRatio, 0.1),
-        reason:
-            'Aspect ratio should be preserved when only height is specified',
+        asciiArt.toDisplayString().trim().split('\n').first.length,
+        equals(desiredWidth),
       );
     });
 
-    test(
-      'Neither width nor height provided (default width with aspect ratio)',
-      () async {
-        final asciiArt = await convertImagePathToAscii(testFilePath);
+    test('color encoding round-trips through display string', () async {
+      final asciiArt = await convertTestImage(
+        testFilePath,
+        desiredWidth: 50,
+        color: true,
+      );
 
-        final lines = asciiArt.toDisplayString().trim().split('\n');
-        final actualHeight = lines.length;
-        final actualWidth = lines.first.length;
-
-        expect(
-          actualWidth,
-          equals(150),
-          reason: 'ASCII art should use default width of 150',
-        );
-
-        // Expected height accounts for charAspectRatio correction
-        final adjustedAspectRatio = originalAspectRatio / charAspectRatio;
-        final expectedHeight = (150 / adjustedAspectRatio).round();
-        expect(
-          actualHeight,
-          equals(expectedHeight),
-          reason: 'ASCII art height should be calculated from aspect ratio',
-        );
-
-        // Verify aspect ratio is preserved
-        final asciiAspectRatio = actualWidth / actualHeight;
-        print('ASCII aspect ratio with default params: $asciiAspectRatio');
-        expect(
-          asciiAspectRatio,
-          closeTo(adjustedAspectRatio, 0.1),
-          reason: 'Aspect ratio should be preserved with default parameters',
-        );
-      },
-    );
+      expect(asciiArt.color, isTrue);
+      expect(asciiArt.toDisplayString(), isNotEmpty);
+    });
   });
 }

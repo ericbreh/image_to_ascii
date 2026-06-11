@@ -39,7 +39,8 @@ await controller.switchToBack();
 
 // Take a picture and convert to ASCII
 final picture = await controller.takePicture();
-// Then pass to convertImagePathToAscii()
+final cropped = await cropToAspectRatio(picture.path);
+final asciiImage = await convertImageToAscii(cropped);
 
 // Dispose when done
 await controller.dispose();
@@ -51,10 +52,8 @@ await controller.dispose();
 import 'package:image_to_ascii/image_to_ascii.dart';
 
 // Convert image file to ASCII
-final asciiImage = await convertImagePathToAscii('path/to/image.png');
-
-// Or convert a ui.Image directly
-final asciiImage = await convertImageToAscii(uiImage);
+final cropped = await cropToAspectRatio('path/to/image.png');
+final asciiImage = await convertImageToAscii(cropped);
 
 // Display
 AsciiImageWidget(ascii: asciiImage)
@@ -62,7 +61,7 @@ AsciiImageWidget(ascii: asciiImage)
 
 ### Options
 
-- `width` / `height` - Set output dimensions (density)
+- `desiredWidth` - Set output width when cropping (density)
 - `dark` / `darkMode` - Invert colors (white text on black)
 - `color` - Enable colored ASCII output
 
@@ -72,9 +71,9 @@ AsciiCameraController(
   width: 150,
 );
 
-convertImagePathToAscii(
-  'image.png',
-  width: 100,
+final cropped = await cropToAspectRatio('image.png', desiredWidth: 100);
+final asciiImage = await convertImageToAscii(
+  cropped,
   dark: true,
   color: true,
 );

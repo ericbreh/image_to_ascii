@@ -12,7 +12,6 @@ class AsciiImageWidget extends StatelessWidget {
   final double? height;
   final double? width;
   final TextStyle? textStyle;
-  final bool forceCanvas;
   final double charAspectRatio;
 
   const AsciiImageWidget({
@@ -20,7 +19,6 @@ class AsciiImageWidget extends StatelessWidget {
     this.width,
     this.height,
     this.textStyle,
-    this.forceCanvas = false,
     this.charAspectRatio = 0.7,
     required this.ascii,
   });
@@ -46,7 +44,7 @@ class AsciiImageWidget extends StatelessWidget {
                 (ascii.version > 1)
                     ? Text('Image not supported. Check for updates')
                     //web does not support isolates
-                    : (ascii.version == 0 || forceCanvas || kIsWeb)
+                    : (ascii.version == 0 || kIsWeb)
                     ? _AsciiWidget(ascii: ascii, style: baseTextStyle)
                     : _FastAsciiWidget(
                       ascii: ascii,
