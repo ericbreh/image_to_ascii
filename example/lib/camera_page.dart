@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_to_ascii/image_to_ascii.dart';
@@ -13,14 +14,25 @@ class CameraPage extends StatefulWidget {
 class _CameraPageState extends State<CameraPage> {
   late final AsciiCameraController _ctrl;
   bool cameraAvailable = false;
+  String? cameraError;
 
   @override
   void initState() {
     super.initState();
     _ctrl = AsciiCameraController(darkMode: true, width: 150, height: 150);
-    _ctrl.initialize().then((_) {
-      setState(() => cameraAvailable = true);
-    });
+    _ctrl
+        .initialize()
+        .then((_) {
+          if (mounted) setState(() => cameraAvailable = true);
+        })
+        .catchError((Object e) {
+          debugPrint('Camera initialization failed: $e');
+          if (mounted) {
+            setState(() {
+              cameraError = 'Camera unavailable.';
+            });
+          }
+        });
   }
 
   @override
@@ -56,22 +68,23 @@ class _CameraPageState extends State<CameraPage> {
       appBar: AppBar(
         title: const Text('ASCII Camera'),
         actions: [
-          IconButton(
-            onPressed:
-                !cameraAvailable
-                    ? null
-                    : () async {
-                      if (_ctrl.flashIsAuto()) {
-                        await _ctrl.flashOff();
-                      } else {
-                        await _ctrl.flashAuto();
-                      }
-                      setState(() {});
-                    },
-            icon: Icon(
-              _ctrl.flashIsAuto() ? Icons.flash_auto : Icons.flash_off,
+          if (Platform.isAndroid || Platform.isIOS)
+            IconButton(
+              onPressed:
+                  !cameraAvailable
+                      ? null
+                      : () async {
+                        if (_ctrl.flashIsAuto()) {
+                          await _ctrl.flashOff();
+                        } else {
+                          await _ctrl.flashAuto();
+                        }
+                        setState(() {});
+                      },
+              icon: Icon(
+                _ctrl.flashIsAuto() ? Icons.flash_auto : Icons.flash_off,
+              ),
             ),
-          ),
         ],
       ),
       body: Column(
@@ -85,6 +98,14 @@ class _CameraPageState extends State<CameraPage> {
                   if (snapshot.hasData && snapshot.data != null) {
                     return AsciiImageWidget(
                       ascii: AsciiImage.fromSimpleString(snapshot.data!),
+                    );
+                  }
+                  if (cameraError != null) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(cameraError!, textAlign: TextAlign.center),
+                      ),
                     );
                   }
                   return const Center(child: CircularProgressIndicator());
